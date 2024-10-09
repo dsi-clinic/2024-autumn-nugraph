@@ -2,6 +2,7 @@
 
 Name: Edward Gu
 Email: ygu0929@uchicago.edu
+
 Name: Meghane Saidenberg-Coriston
 Email: msaidenberg@uchicago.edu
 
