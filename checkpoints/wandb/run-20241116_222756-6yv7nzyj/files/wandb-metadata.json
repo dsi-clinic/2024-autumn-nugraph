@@ -1,0 +1,100 @@
+{
+  "os": "Linux-5.15.0-100-generic-x86_64-with-glibc2.31",
+  "python": "3.10.15",
+  "startedAt": "2024-11-17T04:27:56.479259Z",
+  "program": "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/scripts/train.py",
+  "codePath": "scripts/train.py",
+  "git": {
+    "remote": "https://github.com/dsi-clinic/2024-autumn-nugraph.git",
+    "commit": "df3aebf7d68386a9630dd76a35a06f3ff624ed8e"
+  },
+  "email": "mesaidenberg@gmail.com",
+  "root": "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/checkpoints",
+  "host": "j002-ds",
+  "username": "msaidenberg",
+  "executable": "/home/msaidenberg/.conda/envs/justin_gnn/bin/python",
+  "codePathLocal": "train.py",
+  "cpu_count": 32,
+  "cpu_count_logical": 32,
+  "gpu": "NVIDIA A100 80GB PCIe",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "231917150208",
+      "used": "136600158208"
+    }
+  },
+  "memory": {
+    "total": "1082128814080"
+  },
+  "cpu": {
+    "count": 32,
+    "countLogical": 32
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA A100 80GB PCIe",
+      "memoryTotal": "85899345920",
+      "cudaCores": 6912,
+      "architecture": "Ampere"
+    }
+  ],
+  "slurm": {
+    "cluster_name": "dsicluster",
+    "conf": "/etc/slurm/slurm.conf",
+    "cpu_bind": "quiet,mask_cpu:0xF000F000",
+    "cpu_bind_list": "0xF000F000",
+    "cpu_bind_type": "mask_cpu:",
+    "cpu_bind_verbose": "quiet",
+    "cpus_on_node": "8",
+    "cpus_per_gpu": "8",
+    "distribution": "cyclic",
+    "gpus_on_node": "1",
+    "gtids": "0",
+    "job_account": "general_group",
+    "job_cpus_per_node": "8",
+    "job_end_time": "1731860869",
+    "job_gid": "27486",
+    "job_gpus": "0",
+    "job_id": "257821",
+    "job_name": "exatrkx",
+    "job_nodelist": "j002-ds",
+    "job_num_nodes": "1",
+    "job_partition": "general",
+    "job_qos": "normal",
+    "job_start_time": "1731817669",
+    "job_uid": "24022",
+    "job_user": "msaidenberg",
+    "jobid": "257821",
+    "launch_node_ipaddr": "192.168.211.34",
+    "localid": "0",
+    "mem_per_cpu": "30720",
+    "nnodes": "1",
+    "nodeid": "0",
+    "nodelist": "j002-ds",
+    "nprocs": "1",
+    "ntasks": "1",
+    "open_mode": "a",
+    "prio_process": "0",
+    "procid": "0",
+    "srun_comm_host": "192.168.211.34",
+    "srun_comm_port": "35423",
+    "step_gpus": "0",
+    "step_id": "0",
+    "step_launcher_port": "35423",
+    "step_nodelist": "j002-ds",
+    "step_num_nodes": "1",
+    "step_num_tasks": "1",
+    "step_tasks_per_node": "1",
+    "stepid": "0",
+    "submit_dir": "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/scripts",
+    "submit_host": "fe01",
+    "task_pid": "1282005",
+    "tasks_per_node": "1",
+    "topology_addr": "j002-ds",
+    "topology_addr_pattern": "node",
+    "umask": "0007",
+    "working_cluster": "dsicluster:192.168.211.10:6817:9984:109"
+  },
+  "cudaVersion": "12.4"
+}

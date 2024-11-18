@@ -59,6 +59,7 @@ class EventDecoder(nn.Module):
         """
 
         # run network and calculate loss
+        print(data)
         x = self.net(data["evt"].x)
         y = data["evt"].y
         w = 2 * (-1 * self.temp).exp()

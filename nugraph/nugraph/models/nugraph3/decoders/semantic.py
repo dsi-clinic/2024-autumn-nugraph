@@ -57,7 +57,8 @@ class SemanticDecoder(nn.Module):
             data: Graph data object
             stage: Stage name (train/val/test)
         """
-
+        print('here! semantic')
+        print('data', data)
         # run network and add output to graph object
         data["hit"].x_semantic = self.net(data["hit"].x)
         if isinstance(data, Batch):

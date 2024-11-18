@@ -1,0 +1,316 @@
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'hit'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'ophits'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'opflashsumpe'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'opflash', 'sp'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'evt'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'sp'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'opflash'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'hit'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'ophits'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'opflashsumpe'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'opflash', 'sp'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'evt'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'sp'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'opflash'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+HPU available: False, using: 0 HPUs
+You are using a CUDA device ('NVIDIA A100 80GB PCIe') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+wandb: Using wandb-core as the SDK backend.  Please refer to https://wandb.me/wandb-core for more information.
+wandb: Currently logged in as: mesaidenberg (mesaidenberg-university-of-chicago). Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.18.7
+wandb: Run data is saved locally in /net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/checkpoints/wandb/run-20241116_222512-simxynaz
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run peach-music-91
+wandb: ⭐️ View project at https://wandb.ai/mesaidenberg-university-of-chicago/nugraph3
+wandb: 🚀 View run at https://wandb.ai/mesaidenberg-university-of-chicago/nugraph3/runs/simxynaz
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loading `train_dataloader` to estimate number of stepping batches.
+
+  | Name             | Type             | Params | Mode 
+--------------------------------------------------------------
+0 | encoder          | HeteroDictLinear | 768    | train
+1 | ophit_encoder    | HeteroDictLinear | 1.2 K  | train
+2 | pmt_encoder      | HeteroDictLinear | 192    | train
+3 | flash_encoder    | HeteroDictLinear | 352    | train
+4 | core_net         | NuGraphCore      | 178 K  | train
+5 | semantic_decoder | SemanticDecoder  | 646    | train
+6 | filter_decoder   | FilterDecoder    | 130    | train
+--------------------------------------------------------------
+182 K     Trainable params
+0         Non-trainable params
+182 K     Total params
+0.729     Total estimated model params size (MB)
+157       Modules in train mode
+0         Modules in eval mode
+SLURM auto-requeueing enabled. Setting signal handlers.
+
+configuring nugraph environment:
+  NUGRAPH_DIR   (set from env var)  - /net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/nugraph/nugraph
+  NUGRAPH_DATA  (set from env var)  - /net/projects/fermi-gnn/24summer/helal/preprocessing3/graph.h5
+  NUGRAPH_LOG   (set from env var)  - /net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/checkpoints
+
+sanity check! in the next_try folder.
+source and target
+128 128
+source and target
+128 32
+source and target
+128 64
+source and target
+64 32
+source and target
+32 32
+source and target
+32 32
+source and target
+32 32
+source and target
+32 128
+source and target
+32 32
+source and target
+32 64
+source and target
+64 128
+sanity check! in the next_try folder.
+source and target
+128 128
+source and target
+128 32
+source and target
+128 64
+source and target
+64 32
+source and target
+32 32
+source and target
+32 32
+source and target
+32 32
+source and target
+32 128
+source and target
+32 32
+source and target
+32 64
+source and target
+64 128
+Sanity Checking: |          | 0/? [00:00<?, ?it/s]Sanity Checking:   0%|          | 0/2 [00:00<?, ?it/s]Sanity Checking DataLoader 0:   0%|          | 0/2 [00:00<?, ?it/s]here! validation step
+here! at the place
+edges {('ophits', 'sumpe', 'opflashsumpe'): tensor([[   18,    19,    26,  ..., 28738, 28739, 28740],
+        [    0,     0,     1,  ...,  1921,  1921,  1921]], device='cuda:0'), ('opflashsumpe', 'flash', 'opflash'): tensor([[   0,    1,    2,  ..., 1924, 1925, 1926],
+        [   0,    0,    0,  ...,   75,   75,   75]], device='cuda:0'), ('opflash', 'in', 'evt'): tensor([[ 0,  0,  1,  1,  3,  3,  4,  4,  5,  5,  6,  6,  8,  8,  9,  9, 10, 10,
+         11, 11, 12, 12, 14, 14, 15, 15, 17, 17, 19, 19, 20, 20, 21, 21, 22, 22,
+         23, 23, 24, 24, 26, 26, 27, 27, 28, 28, 29, 29, 31, 31, 32, 32, 33, 33,
+         34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 40, 40, 41, 41, 42, 42, 43, 43,
+         44, 44, 45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52,
+         54, 54, 55, 55, 56, 56, 57, 57, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63,
+         64, 64, 66, 66, 67, 67, 68, 68, 69, 69, 70, 70, 71, 71, 72, 72, 73, 73,
+         75, 75],
+        [ 0,  0,  1,  1,  2,  2,  3,  3,  4,  4,  5,  5,  6,  6,  7,  7,  8,  8,
+          9,  9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17,
+         18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26,
+         27, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 32, 33, 33, 34, 34, 35, 35,
+         36, 36, 37, 37, 38, 38, 39, 39, 40, 40, 41, 41, 42, 42, 43, 43, 44, 44,
+         45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52, 53, 53,
+         54, 54, 55, 55, 56, 56, 57, 57, 58, 58, 59, 59, 60, 60, 61, 61, 62, 62,
+         63, 63]], device='cuda:0'), ('hit', 'delaunay-planar', 'hit'): tensor([[    0,     0,     0,  ..., 93497, 93497, 93497],
+        [    1,     2,     4,  ..., 93486, 93495, 93496]], device='cuda:0'), ('hit', 'nexus', 'sp'): tensor([[  286,    46,    46,  ..., 93497, 93497, 93497],
+        [    0,     1,     2,  ..., 83637, 83638, 83639]], device='cuda:0'), ('hit', 'cluster-truth', 'particle-truth'): tensor([[  165,   166,   167,  ..., 93495, 93496, 93497],
+        [    0,     0,     0,  ...,   221,   221,   221]], device='cuda:0'), ('hit', 'in', 'evt'): tensor([[    0,     1,     2,  ..., 93495, 93496, 93497],
+        [    0,     0,     0,  ...,    63,    63,    63]], device='cuda:0'), ('sp', 'in', 'evt'): tensor([[    0,     1,     2,  ..., 83637, 83638, 83639],
+        [    0,     0,     0,  ...,    63,    63,    63]], device='cuda:0'), ('opflashsumpe', 'sumpe', 'ophits'): tensor([[    0,     0,     1,  ...,  1921,  1921,  1921],
+        [   18,    19,    26,  ..., 28738, 28739, 28740]], device='cuda:0'), ('ophits', 'in', 'evt'): tensor([[   18,    19,    26,  ..., 28738, 28739, 28740],
+        [    0,     0,     0,  ...,    63,    63,    63]], device='cuda:0'), ('evt', 'in', 'ophits'): tensor([[    0,     0,     0,  ...,    63,    63,    63],
+        [   18,    19,    26,  ..., 28738, 28739, 28740]], device='cuda:0'), ('opflash', 'flash', 'opflashsumpe'): tensor([[   0,    0,    0,  ...,   75,   75,   75],
+        [   0,    1,    2,  ..., 1924, 1925, 1926]], device='cuda:0'), ('evt', 'in', 'opflash'): tensor([[ 0,  0,  1,  1,  2,  2,  3,  3,  4,  4,  5,  5,  6,  6,  7,  7,  8,  8,
+          9,  9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17,
+         18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26,
+         27, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 32, 33, 33, 34, 34, 35, 35,
+         36, 36, 37, 37, 38, 38, 39, 39, 40, 40, 41, 41, 42, 42, 43, 43, 44, 44,
+         45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52, 53, 53,
+         54, 54, 55, 55, 56, 56, 57, 57, 58, 58, 59, 59, 60, 60, 61, 61, 62, 62,
+         63, 63],
+        [ 0,  0,  1,  1,  3,  3,  4,  4,  5,  5,  6,  6,  8,  8,  9,  9, 10, 10,
+         11, 11, 12, 12, 14, 14, 15, 15, 17, 17, 19, 19, 20, 20, 21, 21, 22, 22,
+         23, 23, 24, 24, 26, 26, 27, 27, 28, 28, 29, 29, 31, 31, 32, 32, 33, 33,
+         34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 40, 40, 41, 41, 42, 42, 43, 43,
+         44, 44, 45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52,
+         54, 54, 55, 55, 56, 56, 57, 57, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63,
+         64, 64, 66, 66, 67, 67, 68, 68, 69, 69, 70, 70, 71, 71, 72, 72, 73, 73,
+         75, 75]], device='cuda:0')}
+plane to nexus
+edge tensor([[  286,    46,    46,  ..., 93497, 93497, 93497],
+        [    0,     1,     2,  ..., 83637, 83638, 83639]], device='cuda:0')
+message
+(torch.Size([235074, 32]), torch.Size([235074, 128]))
+hit to pmt
+edge tensor([[   18,    19,    26,  ..., 28738, 28739, 28740],
+        [    0,     0,     1,  ...,  1921,  1921,  1921]], device='cuda:0')
+message
+(torch.Size([15088, 64]), torch.Size([15088, 128]))
+pmt to flash
+edge tensor([[   0,    1,    2,  ..., 1924, 1925, 1926],
+        [   0,    0,    0,  ...,   75,   75,   75]], device='cuda:0')
+message
+(torch.Size([1927, 32]), torch.Size([1927, 64]))
+nexus flash to interaction
+edge tensor([[    0,     1,     2,  ..., 83637, 83638, 83639],
+        [    0,     0,     0,  ...,    63,    63,    63]], device='cuda:0')
+message
+(torch.Size([83640, 32]), torch.Size([83640, 32]))
+edge tensor([[ 0,  0,  1,  1,  3,  3,  4,  4,  5,  5,  6,  6,  8,  8,  9,  9, 10, 10,
+         11, 11, 12, 12, 14, 14, 15, 15, 17, 17, 19, 19, 20, 20, 21, 21, 22, 22,
+         23, 23, 24, 24, 26, 26, 27, 27, 28, 28, 29, 29, 31, 31, 32, 32, 33, 33,
+         34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 40, 40, 41, 41, 42, 42, 43, 43,
+         44, 44, 45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52,
+         54, 54, 55, 55, 56, 56, 57, 57, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63,
+         64, 64, 66, 66, 67, 67, 68, 68, 69, 69, 70, 70, 71, 71, 72, 72, 73, 73,
+         75, 75],
+        [ 0,  0,  1,  1,  2,  2,  3,  3,  4,  4,  5,  5,  6,  6,  7,  7,  8,  8,
+          9,  9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17,
+         18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26,
+         27, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 32, 33, 33, 34, 34, 35, 35,
+         36, 36, 37, 37, 38, 38, 39, 39, 40, 40, 41, 41, 42, 42, 43, 43, 44, 44,
+         45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52, 53, 53,
+         54, 54, 55, 55, 56, 56, 57, 57, 58, 58, 59, 59, 60, 60, 61, 61, 62, 62,
+         63, 63]], device='cuda:0')
+message
+(torch.Size([128, 32]), torch.Size([128, 32]))
+interaction to nexus
+nexus to plane
+interaction to flash
+edge tensor([[ 0,  0,  1,  1,  2,  2,  3,  3,  4,  4,  5,  5,  6,  6,  7,  7,  8,  8,
+          9,  9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17,
+         18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26,
+         27, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 32, 33, 33, 34, 34, 35, 35,
+         36, 36, 37, 37, 38, 38, 39, 39, 40, 40, 41, 41, 42, 42, 43, 43, 44, 44,
+         45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52, 53, 53,
+         54, 54, 55, 55, 56, 56, 57, 57, 58, 58, 59, 59, 60, 60, 61, 61, 62, 62,
+         63, 63],
+        [ 0,  0,  1,  1,  3,  3,  4,  4,  5,  5,  6,  6,  8,  8,  9,  9, 10, 10,
+         11, 11, 12, 12, 14, 14, 15, 15, 17, 17, 19, 19, 20, 20, 21, 21, 22, 22,
+         23, 23, 24, 24, 26, 26, 27, 27, 28, 28, 29, 29, 31, 31, 32, 32, 33, 33,
+         34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 40, 40, 41, 41, 42, 42, 43, 43,
+         44, 44, 45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52,
+         54, 54, 55, 55, 56, 56, 57, 57, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63,
+         64, 64, 66, 66, 67, 67, 68, 68, 69, 69, 70, 70, 71, 71, 72, 72, 73, 73,
+         75, 75]], device='cuda:0')
+message
+(torch.Size([128, 32]), torch.Size([128, 32]))
+flash to pmt
+edge tensor([[   0,    0,    0,  ...,   75,   75,   75],
+        [   0,    1,    2,  ..., 1924, 1925, 1926]], device='cuda:0')
+message
+(torch.Size([1927, 64]), torch.Size([1927, 32]))
+pmt to ophit
+edge tensor([[    0,     0,     1,  ...,  1921,  1921,  1921],
+        [   18,    19,    26,  ..., 28738, 28739, 28740]], device='cuda:0')
+message
+(torch.Size([15088, 128]), torch.Size([15088, 64]))
+Traceback (most recent call last):
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/scripts/train.py", line 82, in <module>
+    train(args)
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/scripts/train.py", line 77, in train
+    trainer.fit(model, datamodule=nudata)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 538, in fit
+    call._call_and_handle_interrupt(
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 47, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 574, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 981, in _run
+    results = self._run_stage()
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1023, in _run_stage
+    self._run_sanity_check()
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1052, in _run_sanity_check
+    val_loop.run()
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/loops/utilities.py", line 178, in _decorator
+    return loop_run(self, *args, **kwargs)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 135, in run
+    self._evaluation_step(batch, batch_idx, dataloader_idx, dataloader_iter)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 396, in _evaluation_step
+    output = call._call_strategy_hook(trainer, hook_name, *step_args)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 319, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/strategies/strategy.py", line 411, in validation_step
+    return self.lightning_module.validation_step(*args, **kwargs)
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/nugraph/nugraph/models/nugraph3/nugraph3.py", line 299, in validation_step
+    loss, metrics = self.step(batch, 'val')
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/nugraph/nugraph/models/nugraph3/nugraph3.py", line 250, in step
+    x = self(p, n, oph, pmt, opf, i, edges)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/nugraph/nugraph/models/nugraph3/nugraph3.py", line 210, in forward
+    ret.update(decoder(p|n|i))
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/nugraph/nugraph/models/nugraph3/decoders/semantic.py", line 62, in forward
+    data["hit"].x_semantic = self.net(data["hit"].x)
+KeyError: 'hit'
+Traceback (most recent call last):
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/scripts/train.py", line 82, in <module>
+    train(args)
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/scripts/train.py", line 77, in train
+    trainer.fit(model, datamodule=nudata)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 538, in fit
+    call._call_and_handle_interrupt(
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 47, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 574, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 981, in _run
+    results = self._run_stage()
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1023, in _run_stage
+    self._run_sanity_check()
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1052, in _run_sanity_check
+    val_loop.run()
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/loops/utilities.py", line 178, in _decorator
+    return loop_run(self, *args, **kwargs)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 135, in run
+    self._evaluation_step(batch, batch_idx, dataloader_idx, dataloader_iter)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 396, in _evaluation_step
+    output = call._call_strategy_hook(trainer, hook_name, *step_args)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 319, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/pytorch_lightning/strategies/strategy.py", line 411, in validation_step
+    return self.lightning_module.validation_step(*args, **kwargs)
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/nugraph/nugraph/models/nugraph3/nugraph3.py", line 299, in validation_step
+    loss, metrics = self.step(batch, 'val')
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/nugraph/nugraph/models/nugraph3/nugraph3.py", line 250, in step
+    x = self(p, n, oph, pmt, opf, i, edges)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/nugraph/nugraph/models/nugraph3/nugraph3.py", line 210, in forward
+    ret.update(decoder(p|n|i))
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/nugraph/nugraph/models/nugraph3/decoders/semantic.py", line 62, in forward
+    data["hit"].x_semantic = self.net(data["hit"].x)
+KeyError: 'hit'
+[1;34mwandb[0m: 🚀 View run [33mpeach-music-91[0m at: [34mhttps://wandb.ai/mesaidenberg-university-of-chicago/nugraph3/runs/simxynaz[0m
+[1;34mwandb[0m: Find logs at: [1;35m../checkpoints/wandb/run-20241116_222512-simxynaz/logs[0m
+srun: error: j002-ds: task 0: Exited with exit code 1

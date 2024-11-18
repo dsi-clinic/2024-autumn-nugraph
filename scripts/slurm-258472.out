@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/scripts/train.py", line 9, in <module>
+srun: error: j002-ds: task 0: Exited with exit code 1
+    import torch
+ModuleNotFoundError: No module named 'torch'

@@ -45,7 +45,7 @@ def train(args):
 
     model = Model.from_args(args, nudata)
 
-    logdir = pathlib.Path(os.environ["NUGRAPH_LOG"])/args.name
+    logdir = pathlib.Path(os.environ["NUGRAPH_LOG"]) #/args.name
     logdir.mkdir(parents=True, exist_ok=True)
     log_model = False if args.offline else "all"
     logger = pl.loggers.WandbLogger(save_dir=logdir, project=args.project,

@@ -2,15 +2,25 @@
 import argparse
 import warnings
 
+import torch
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 
 from pytorch_lightning import LightningModule
 
+from torch_geometric.nn import HeteroDictLinear
+from torch_geometric.data import Batch, HeteroData
+from torch_geometric.utils import unbatch
+
+from torch.utils.checkpoint import checkpoint
+
+from .types import TD, ED
+
 from .types import Data
 from .encoder import Encoder
 from .core import NuGraphCore
-from .decoders import SemanticDecoder, FilterDecoder, EventDecoder, VertexDecoder, InstanceDecoder
+#from .decoders import SemanticDecoder, FilterDecoder, EventDecoder, VertexDecoder, InstanceDecoder
+from .summer_decoders import SemanticDecoder, FilterDecoder, EventDecoder, VertexDecoder
 
 from ...data import H5DataModule
 
@@ -38,8 +48,11 @@ class NuGraph3(LightningModule):
         lr: Learning rate
     """
     def __init__(self,
-                 in_features: dict = {'u': 4, 'v': 4, 'y': 4, 
+                # in_features: dict = {'u': 4, 'v': 4, 'y': 4, 
+                 #                     'oph': 8, 'pmt': 2, 'opf': 10},
+                 in_features: dict = {'hit': 5, 
                                       'oph': 8, 'pmt': 2, 'opf': 10},
+                 hit_features: int = 128,
                  planar_features: int = 128,
                  nexus_features: int = 32,
                  interaction_features: int = 32,
@@ -60,6 +73,8 @@ class NuGraph3(LightningModule):
                  lr: float = 0.001):
         super().__init__()
 
+        print('sanity check! in the next_try folder.')
+
         warnings.filterwarnings("ignore", ".*NaN values found in confusion matrix.*")
 
         self.save_hyperparameters()
@@ -72,8 +87,13 @@ class NuGraph3(LightningModule):
         self.num_iters = num_iters
         self.lr = lr
 
-        self.encoder = Encoder(in_features, hit_features,
-                               nexus_features, interaction_features)
+       # self.encoder = Encoder(in_features, hit_features,
+        #                       nexus_features, interaction_features)
+
+        self.encoder = HeteroDictLinear({
+            #p: in_features[p] for p in ['u', 'v', 'y']},
+            'hit': in_features['hit']},
+            planar_features)
 
         self.ophit_encoder = HeteroDictLinear({
             'ophits': in_features['oph']}, 
@@ -87,13 +107,16 @@ class NuGraph3(LightningModule):
             'opflash': in_features['opf']}, 
             flash_features)
 
+        NUM_PLANES = 1
         self.core_net = NuGraphCore(hit_features=planar_features,
                                     nexus_features=nexus_features,
                                     interaction_features=interaction_features,
                                     ophit_features=ophit_features,
-                                    pmt_features=ophit_features,
+                                    pmt_features=pmt_features,
                                     flash_features=flash_features,
-                                    planes=use_checkpointing)
+                                    planes=NUM_PLANES)
+
+        self.loop = self.ckpt if use_checkpointing else self.core_net
 
         self.decoders = []
 
@@ -119,36 +142,153 @@ class NuGraph3(LightningModule):
 
         if not self.decoders:
             raise RuntimeError('At least one decoder head must be enabled!')
-
-    def forward(self, data: Data,
-                stage: str = None):
+        
+    @torch.jit.ignore
+    def ckpt(self, p, n, oph, pmt, opf, i, edges) -> tuple[TD, TD, TD, TD, TD, TD]:
         """
-        NuGraph3 forward function
-
-        This function runs the forward pass of the NuGraph3 architecture,
-        and then loops over each decoder to compute the loss and calculate
-        and log any performance metrics.
+        Checkpointing wrapper for core loop
 
         Args:
-            data: Graph data object
-            stage: String tag defining the step type
+            p: Planar embedding tensor dictionary
+            n: Nexus embedding tensor dictionary
+            oph: Optical hit embedding tensor dictionary
+            pmt: PMT (flashsumpe) embedding tensor dictionary
+            opf: Optical flash embedding tensor dictionary
+            i: Interaction embedding tensor dictionary
+            edges: Edge index tensor dictionary
         """
-        self.encoder(data)
+        return checkpoint(self.core_net, p, n, oph, pmt, opf, i, edges, use_reentrant=False)
+
+    # def forward(self, data: Data,
+    #             stage: str = None):
+    #     """
+    #     NuGraph3 forward function
+
+    #     This function runs the forward pass of the NuGraph3 architecture,
+    #     and then loops over each decoder to compute the loss and calculate
+    #     and log any performance metrics.
+
+    #     Args:
+    #         data: Graph data object
+    #         stage: String tag defining the step type
+    #     """
+    #     self.encoder(data)
+    #     for _ in range(self.num_iters):
+    #         self.core_net(data)
+    #     total_loss = 0.
+    #     total_metrics = {}
+    #     for decoder in self.decoders:
+    #         loss, metrics = decoder(data, stage)
+    #         total_loss += loss
+    #         total_metrics.update(metrics)
+
+    #     return total_loss, total_metrics
+
+    def forward(self, p, n, oph, pmt, opf, i, edges):
+        """
+        NuGraph3 forward pass
+
+        Args:
+            p: Planar embedding tensor dictionary
+            n: Nexus embedding tensor dictionary
+            i: Interaction embedding tensor dictionary
+            oph: Optical hit embedding tensor dictionary
+            pmt: PMT (flashsumpe) embedding tensor dictionary
+            opf: Optical flash embedding tensor dictionary
+            edges: Edge index tensor dictionary
+        """
+        # generating feature embedding for each node type
+        p = self.encoder(p)
+        oph = self.ophit_encoder(oph)
+        pmt = self.pmt_encoder(pmt)
+        opf = self.flash_encoder(opf)
+        
         for _ in range(self.num_iters):
-            self.core_net(data)
+         #   p, n, oph, pmt, opf, i = self.loop(p, n, oph, pmt, opf, i, edges)
+            p, n, oph, pmt, opf, i = self.core_net(p, n, oph, pmt, opf, i, edges)
+        ret = {}
+        for decoder in self.decoders:
+            ret.update(decoder(p|n|i))
+        return ret
+
+    def step(self, data: HeteroData,
+             stage: str = None,
+             confusion: bool = False):
+        """
+        NuGraph3 step
+
+        This function wraps the forward function by receiving a HeteroData
+        object and unpacking it into a set of torchscript-compatible
+        tensor dictionaries. It also has some awkward hacks to append the
+        output tensors back onto the data object in a manner that supports
+        downstream unbatching. It then loops over each decoder to compute
+        the loss and calculate and log any performance metrics.
+
+        Args:
+            data: Data object to step over
+            stage: String tag defining the step type
+            confusion: Whether to produce confusion matrices
+        """
+
+        # how many nexus features? awkward hack, needs to be fixed.
+        n = dict(sp=torch.zeros(data["sp"].num_nodes,
+                                self.nexus_features,
+                                device=self.device))
+        i = dict(evt=torch.zeros(data["evt"].num_nodes,
+                                 self.interaction_features,
+                                 device=self.device))
+        
+        # extracting input features from the data object
+       # p = {p: data[p]['x'] for p in ['u', 'v', 'y']}
+        p = {'hit': data['hit']['x']}
+        oph = {'ophits': data['ophits']['x']}
+        pmt = {'opflashsumpe': data['opflashsumpe']['x']}
+        opf = {'opflash': data['opflash']['x']}
+        edges = data.edge_index_dict
+        # forward pass
+        #x = self(p, n, oph, pmt, opf, i, data.edge_index_dict)
+        print('here! at the place')
+        x = self(p, n, oph, pmt, opf, i, edges)
+
+        # append output tensors back onto input data object
+        if isinstance(data, Batch):
+            dlist = [ HeteroData() for i in range(data.num_graphs) ]
+            for attr, planes in x.items():
+                for p, t in planes.items():
+                    if t.size(0) == data[p].num_nodes:
+                        tlist = unbatch(t, data[p].batch)
+                    elif t.size(0) == data.num_graphs:
+                        tlist = unbatch(t, torch.arange(data.num_graphs))
+                    else:
+                        raise RuntimeError(f"Don't know how to unbatch attribute {attr}")
+                    for it_d, it_t in zip(dlist, tlist):
+                        it_d[p][attr] = it_t
+            tmp = Batch.from_data_list(dlist)
+            data.update(tmp)
+            for attr, planes in x.items():
+                for p in planes:
+                    data._slice_dict[p][attr] = tmp._slice_dict[p][attr]
+                    data._inc_dict[p][attr] = tmp._inc_dict[p][attr]
+
+        else:
+            for key, value in x.items():
+                data.set_value_dict(key, value)
+
         total_loss = 0.
         total_metrics = {}
         for decoder in self.decoders:
-            loss, metrics = decoder(data, stage)
+            loss, metrics = decoder.loss(data, stage, confusion)
             total_loss += loss
             total_metrics.update(metrics)
+            decoder.finalize(data)
 
         return total_loss, total_metrics
 
     def training_step(self,
                       batch: Data,
                       batch_idx: int) -> float:
-        loss, metrics = self(batch, 'train')
+        print('here! training_step')
+        loss, metrics = self.step(batch, 'train')
         self.log('loss/train', loss, batch_size=batch.num_graphs, prog_bar=True)
         self.log_dict(metrics, batch_size=batch.num_graphs)
         return loss
@@ -156,7 +296,8 @@ class NuGraph3(LightningModule):
     def validation_step(self,
                         batch,
                         batch_idx: int) -> None:
-        loss, metrics = self(batch, 'val')
+        print('here! validation step')
+        loss, metrics = self.step(batch, 'val')
         self.log('loss/val', loss, batch_size=batch.num_graphs)
         self.log_dict(metrics, batch_size=batch.num_graphs)
 
@@ -168,7 +309,7 @@ class NuGraph3(LightningModule):
     def test_step(self,
                   batch,
                   batch_idx: int = 0) -> None:
-        loss, metrics = self(batch, 'test')
+        loss, metrics = self.step(batch, 'test')
         self.log('loss/test', loss, batch_size=batch.num_graphs)
         self.log_dict(metrics, batch_size=batch.num_graphs)
 
@@ -180,7 +321,7 @@ class NuGraph3(LightningModule):
     def predict_step(self,
                      batch: Data,
                      batch_idx: int = 0) -> Data:
-        self(batch)
+        self.step(batch)
         return batch
 
     def configure_optimizers(self) -> tuple:
@@ -203,7 +344,9 @@ class NuGraph3(LightningModule):
         model = parser.add_argument_group('model', 'NuGraph3 model configuration')
         model.add_argument('--num-iters', type=int, default=5,
                            help='Number of message-passing iterations')
-        model.add_argument('--in-feats', type=dict, default={'u': 4, 'v': 4, 'y': 4, 
+     #   model.add_argument('--in-feats', type=dict, default={'u': 4, 'v': 4, 'y': 4, 
+      #                                'oph': 8, 'pmt': 2, 'opf': 10},
+        model.add_argument('--in-feats', type=dict, default={'hit': 5, 
                                       'oph': 8, 'pmt': 2, 'opf': 10},
                            help='Number of input node features')
         model.add_argument('--hit-feats', type=int, default=128,
@@ -261,10 +404,11 @@ class NuGraph3(LightningModule):
             instance_features=args.instance_feats,
             semantic_classes=nudata.semantic_classes,
             event_classes=nudata.event_classes,
-            num_iters=args.num_iters,
-            event_head=args.event,
+            #num_iters=args.num_iters,
+            num_iters=1,
+            event_head= True, #args.event,
             semantic_head=args.semantic,
-            filter_head=args.filter,
+            filter_head= True, #args.filter,
             vertex_head=args.vertex,
             s_b=args.s_b,
             instance_head=args.instance,
