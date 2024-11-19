@@ -1,0 +1,32 @@
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'hit'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'ophits'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'opflashsumpe'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'opflash', 'sp'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'evt'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'sp'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+/home/msaidenberg/.conda/envs/justin_gnn/lib/python3.10/site-packages/torch_geometric/nn/conv/hetero_conv.py:76: UserWarning: There exist node types ({'opflash'}) whose representations do not get updated during message passing as they do not occur as destination type in any edge type. This may lead to unexpected behavior.
+  warnings.warn(
+
+configuring nugraph environment:
+  NUGRAPH_DIR   (set from env var)  - /net/projects/fermi-gnn/24autumn/meghane/meghane_edits/2024-autumn-nugraph/nugraph/nugraph
+  NUGRAPH_DATA  (set from env var)  - /net/projects/fermi-gnn/24summer/helal/preprocessing3/graph.h5
+  NUGRAPH_LOG   (set from env var)  - /net/projects/fermi-gnn/24autumn/meghane/meghane_edits/2024-autumn-nugraph/checkpoints
+
+sanity check! in the next_try folder.
+Traceback (most recent call last):
+  File "/net/projects/fermi-gnn/24autumn/meghane/meghane_edits/2024-autumn-nugraph/scripts/train.py", line 82, in <module>
+    train(args)
+  File "/net/projects/fermi-gnn/24autumn/meghane/meghane_edits/2024-autumn-nugraph/scripts/train.py", line 46, in train
+    model = Model.from_args(args, nudata)
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/nugraph/nugraph/models/nugraph3/nugraph3.py", line 396, in from_args
+    return cls(
+  File "/net/projects/fermi-gnn/24autumn/meghane/next_try/2024-autumn-nugraph/nugraph/nugraph/models/nugraph3/nugraph3.py", line 124, in __init__
+    self.event_decoder = EventDecoder(interaction_features, event_classes)
+TypeError: EventDecoder.__init__() missing 1 required positional argument: 'event_classes'
+srun: error: g003: task 0: Exited with exit code 1

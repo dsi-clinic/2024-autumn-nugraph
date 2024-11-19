@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/net/projects/fermi-gnn/24autumn/meghane/meghane_edits/2024-autumn-nugraph/scripts/train.py", line 9, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'
+srun: error: g003: task 0: Exited with exit code 1
