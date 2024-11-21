@@ -11,6 +11,11 @@ import pytorch_lightning as pl
 from pytorch_lightning.plugins.environments import SLURMEnvironment
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 import nugraph as ng
+import wandb
+wandb.init()
+wandb.login()
+
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
 torch.set_num_threads(4)
 
