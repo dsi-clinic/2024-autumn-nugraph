@@ -23,7 +23,7 @@ echo $ckpt_path # This will print ckpt_path in .out file
 # Choose based on if you have ckpt files or not
 # Choice 1: --logdir /net/projects/fermi-gnn/%u --name vertex
 # Choice 2: --resume $ckpt_path
-srun python /home/ygu0929/dsi24-merge/2024-autumn-nugraph/scripts/train.py --name pmt --version 24.7.1 --data-path /net/projects/fermi-gnn/24summer/helal/preprocessing3/graph.h5 --semantic --filter --logdir /home/ygu0929/dsi24-merge/2024-autumn-nugraph/checkpoints/ --name pmt
+srun python /home/ygu0929/dsi24-merge/2024-autumn-nugraph/scripts/train.py --name pmt --version 24.7.1 --project nugraph --data-path /net/projects/fermi-gnn/24summer/helal/preprocessing3/graph.h5 --event --semantic --filter --instance --vertex
 # /net/projects/fermi-gnn/CHEP2023.gnn.h5
 # /net/projects/fermi-gnn/24autumn/edward/24summer_replication/24summer/ashmit/preprocessing3/graph.h5
 # This is an examble submission command
