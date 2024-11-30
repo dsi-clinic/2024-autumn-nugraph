@@ -1,9 +1,60 @@
 """NuGraph core message-passing engine"""
+import math
 import torch
+import torch.nn.functional as F
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 from torch_geometric.nn import MessagePassing, HeteroConv
 from .types import T, TD, Data
+
+class MessageGate(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.gate = nn.Sequential(
+            nn.Linear(dim * 2, dim),
+            nn.Sigmoid()
+        )
+        
+    def forward(self, new_msg, old_msg):
+        gate = self.gate(torch.cat([new_msg, old_msg], dim=-1))
+        return gate * new_msg + (1 - gate) * old_msg
+    
+class CrossAttention(nn.Module):
+    def __init__(self, query_dim, key_dim):
+        super().__init__()
+        self.hidden_dim = 256  # Common attention dimension
+        self.num_heads = 4
+        self.head_dim = self.hidden_dim // self.num_heads
+        
+        self.query_proj = nn.Linear(query_dim, self.hidden_dim)
+        self.key_proj = nn.Linear(key_dim, self.hidden_dim)
+        self.value_proj = nn.Linear(key_dim, self.hidden_dim)
+        
+        # Single linear layer for attention
+        self.attention = nn.Linear(self.hidden_dim, self.hidden_dim)
+        self.output_proj = nn.Linear(self.hidden_dim, query_dim)
+        self.norm = nn.LayerNorm(query_dim)
+        
+    def forward(self, x, context):
+        # Get dimensions
+        N_q = x.size(0)        # Number of query tokens
+        N_k = context.size(0)  # Number of key/value tokens
+        
+        # Project inputs
+        q = self.query_proj(x)
+        k = self.key_proj(context)
+        v = self.value_proj(context)
+        
+        # Compute attention scores
+        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        attn = F.softmax(scores, dim=-1)
+        
+        # Apply attention
+        out = torch.matmul(attn, v)
+        out = self.attention(out)
+        out = self.output_proj(out)
+        
+        return self.norm(out + x)
 
 class NuGraphBlock(MessagePassing):
     """
@@ -33,6 +84,8 @@ class NuGraphBlock(MessagePassing):
             nn.Mish(),
             nn.Linear(out_features, out_features),
             nn.Mish())
+        
+        self.message_gate = MessageGate(source_features)
 
     def forward(self, x: T, edge_index: T) -> T:
         """
@@ -57,7 +110,9 @@ class NuGraphBlock(MessagePassing):
             x_i: Edge features from target nodes
             x_j: Edge features from source nodes
         """
-        return self.edge_net(torch.cat((x_i, x_j), dim=1).detach()) * x_j
+        edge_weight = self.edge_net(torch.cat((x_i, x_j), dim=1).detach())
+        new_msg = edge_weight * x_j
+        return self.message_gate(new_msg, x_j)
 
     def update(self, aggr_out: T, x: T) -> T:
         """
@@ -101,6 +156,11 @@ class NuGraphCore(nn.Module):
 
         self.use_checkpointing = use_checkpointing
 
+        # Modified cross-attention modules to handle different dimensions
+        self.hit_flash_attention = CrossAttention(hit_features, flash_features)
+        self.nexus_pmt_attention = CrossAttention(nexus_features, pmt_features)
+        self.interaction_ophit_attention = CrossAttention(interaction_features, ophit_features)
+
         # internal planar message-passing
         self.plane_net = NuGraphBlock(hit_features, hit_features,
                                       hit_features)
@@ -135,6 +195,14 @@ class NuGraphCore(nn.Module):
         self.flash_to_pmt = NuGraphBlock(flash_features, pmt_features, pmt_features)
         self.pmt_to_ophit = NuGraphBlock(pmt_features, ophit_features, ophit_features)
 
+        # Layer normalization for skip connections
+        self.hit_norm = nn.LayerNorm(hit_features)
+        self.nexus_norm = nn.LayerNorm(nexus_features)
+        self.interaction_norm = nn.LayerNorm(interaction_features)
+        self.ophit_norm = nn.LayerNorm(ophit_features)
+        self.pmt_norm = nn.LayerNorm(pmt_features)
+        self.flash_norm = nn.LayerNorm(flash_features)
+
     def checkpoint(self, net: nn.Module, *args) -> TD:
         """
         Checkpoint module, if enabled.
@@ -156,57 +224,88 @@ class NuGraphCore(nn.Module):
             data: Graph data object
         """
 
-        # message-passing in hits
-        data["hit"].x = self.checkpoint(
+        # Store initial states for skip connections
+        hit_initial = data["hit"].x.clone()
+        sp_initial = data["sp"].x.clone()
+        evt_initial = data["evt"].x.clone()
+        ophits_initial = data["ophits"].x.clone()
+        opflashsumpe_initial = data["opflashsumpe"].x.clone()
+        opflash_initial = data["opflash"].x.clone()
+
+        # message-passing in hits with skip connection
+        hit_out = self.checkpoint(
             self.plane_net, data["hit"].x,
             data["hit", "delaunay-planar", "hit"].edge_index)
+        data["hit"].x = self.hit_norm(hit_out + hit_initial)
 
-        # message-passing from hits to nexus
-        data["sp"].x = self.checkpoint(
+        # Add cross-attention between hit and flash features
+        if data["opflash"].x.shape[0] > 0:
+            data["hit"].x = self.hit_flash_attention(data["hit"].x, data["opflash"].x)
+            
+        # message-passing from hits to nexus with skip connection
+        nexus_out = self.checkpoint(
             self.plane_to_nexus, (data["hit"].x, data["sp"].x),
             data["hit", "nexus", "sp"].edge_index)
+        data["sp"].x = self.nexus_norm(nexus_out + sp_initial)
 
-        # message-passing from nexus to interaction
-        data["evt"].x = self.checkpoint(
+        # Add cross-attention between nexus and PMT features
+        if data["opflashsumpe"].x.shape[0] > 0:
+            data["sp"].x = self.nexus_pmt_attention(data["sp"].x, data["opflashsumpe"].x)
+
+        # message-passing from nexus to interaction with skip connection
+        interaction_out = self.checkpoint(
             self.nexus_to_interaction, (data["sp"].x, data["evt"].x),
             data["sp", "in", "evt"].edge_index)
+        data["evt"].x = self.interaction_norm(interaction_out + evt_initial)
 
-        # message-passing from ophit to pmt
-        data["opflashsumpe"].x = self.checkpoint(
+        # message-passing from ophit to pmt with skip connection
+        pmt_out = self.checkpoint(
             self.ophit_to_pmt, (data["ophits"].x, data["opflashsumpe"].x),
             data["ophits", "sumpe", "opflashsumpe"].edge_index)
+        data["opflashsumpe"].x = self.pmt_norm(pmt_out + opflashsumpe_initial)
 
-        # message-passing from pmt to flash
-        data["opflash"].x = self.checkpoint(
+        # message-passing from pmt to flash with skip connection
+        flash_out = self.checkpoint(
             self.pmt_to_flash, (data["opflashsumpe"].x, data["opflash"].x),
             data["opflashsumpe", "flash", "opflash"].edge_index)
+        data["opflash"].x = self.flash_norm(flash_out + opflash_initial)
 
-        # message-passing from flash to interaction
-        data["evt"].x = self.checkpoint(
+        # Add cross-attention between interaction and optical hit features
+        if data["ophits"].x.shape[0] > 0:
+            data["evt"].x = self.interaction_ophit_attention(data["evt"].x, data["ophits"].x)
+
+        # message-passing from flash to interaction with skip connection
+        interaction_out = self.checkpoint(
             self.flash_to_interaction, (data["opflash"].x, data["evt"].x),
             data["opflash", "in", "evt"].edge_index)
+        data["evt"].x = self.interaction_norm(interaction_out + evt_initial)
 
-        # message-passing from interaction to flash
-        data["opflash"].x = self.checkpoint(
+        # message-passing from interaction to flash with skip connection
+        flash_out = self.checkpoint(
             self.interaction_to_flash, (data["evt"].x, data["opflash"].x),
             data["opflash", "in", "evt"].edge_index[(1,0), :])
+        data["opflash"].x = self.flash_norm(flash_out + opflash_initial)
 
-        # message-passing from flash to pmt
-        data["opflashsumpe"].x = self.checkpoint(
+        # message-passing from flash to pmt with skip connection
+        pmt_out = self.checkpoint(
             self.flash_to_pmt, (data["opflash"].x, data["opflashsumpe"].x),
             data["opflashsumpe", "flash", "opflash"].edge_index[(1,0), :])
+        data["opflashsumpe"].x = self.pmt_norm(pmt_out + opflashsumpe_initial)
 
-        # message-passing from pmt to ophit
-        data["ophits"].x = self.checkpoint(
+        # message-passing from pmt to ophit with skip connection
+        ophit_out = self.checkpoint(
             self.pmt_to_ophit, (data["opflashsumpe"].x, data["ophits"].x),
             data["ophits", "sumpe", "opflashsumpe"].edge_index[(1,0), :])
+        data["ophits"].x = self.ophit_norm(ophit_out + ophits_initial)
 
-        # message-passing from interaction to nexus
-        data["sp"].x = self.checkpoint(
+        # message-passing from interaction to nexus with skip connection
+        nexus_out = self.checkpoint(
             self.interaction_to_nexus, (data["evt"].x, data["sp"].x),
             data["sp", "in", "evt"].edge_index[(1,0), :])
+        data["sp"].x = self.nexus_norm(nexus_out + sp_initial)
 
-        # message-passing from nexus to hits
-        data["hit"].x = self.checkpoint(
+        # message-passing from nexus to hits with skip connection
+        hit_out = self.checkpoint(
             self.nexus_to_plane, (data["sp"].x, data["hit"].x),
             data["hit", "nexus", "sp"].edge_index[(1,0), :])
+        data["hit"].x = self.hit_norm(hit_out + hit_initial)
