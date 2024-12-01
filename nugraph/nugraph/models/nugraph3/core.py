@@ -8,6 +8,16 @@ from torch_geometric.nn import MessagePassing, HeteroConv
 from .types import T, TD, Data
 
 class MessageGate(nn.Module):
+    """
+    Message gating mechanism for controlling information flow in message passing.
+
+    This module generates a gating value based on both the new and old message features,
+    and uses it to control how much information from each message is retained. The gate
+    is computed using a linear projection followed by sigmoid activation.
+
+    Args:
+        dim: Number of feature dimensions in the messages
+    """
     def __init__(self, dim):
         super().__init__()
         self.gate = nn.Sequential(
@@ -16,10 +26,30 @@ class MessageGate(nn.Module):
         )
         
     def forward(self, new_msg, old_msg):
+        """
+        MessageGate forward pass
+
+        Args:
+            new_msg: New message features tensor
+            old_msg: Previous message features tensor
+        """
         gate = self.gate(torch.cat([new_msg, old_msg], dim=-1))
         return gate * new_msg + (1 - gate) * old_msg
     
 class CrossAttention(nn.Module):
+    """
+    Cross-attention mechanism for inter-node type feature interaction.
+    
+    This module enables direct attention between different types of nodes
+    by projecting their features to a common space, computing attention
+    weights, and using these weights to update the query features. The
+    module includes projection layers, multi-head attention computation,
+    and layer normalization.
+
+    Args:
+        query_dim: Number of input features in query tensor
+        key_dim: Number of input features in key/value tensors
+    """
     def __init__(self, query_dim, key_dim):
         super().__init__()
         self.hidden_dim = 256  # Common attention dimension
@@ -36,6 +66,19 @@ class CrossAttention(nn.Module):
         self.norm = nn.LayerNorm(query_dim)
         
     def forward(self, x, context):
+        """
+        CrossAttention forward pass
+        
+        This function computes cross-attention between query and context features.
+        Features are first projected to a common dimension, then attention scores
+        are computed and used to weight the value features. The result is
+        projected back to the original query dimension and combined with the
+        input through a residual connection.
+
+        Args:
+            x: Query features tensor
+            context: Context features tensor for keys and values
+        """
         # Get dimensions
         N_q = x.size(0)        # Number of query tokens
         N_k = context.size(0)  # Number of key/value tokens
