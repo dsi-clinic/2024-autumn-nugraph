@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.utils.checkpoint import checkpoint
-from torch_geometric.nn import MessagePassing, HeteroConv
+from torch_geometric.nn import MessagePassing
 from .types import T, TD, Data
 
 class MessageGate(nn.Module):
@@ -79,10 +79,6 @@ class CrossAttention(nn.Module):
             x: Query features tensor
             context: Context features tensor for keys and values
         """
-        # Get dimensions
-        N_q = x.size(0)        # Number of query tokens
-        N_k = context.size(0)  # Number of key/value tokens
-        
         # Project inputs
         q = self.query_proj(x)
         k = self.key_proj(context)
