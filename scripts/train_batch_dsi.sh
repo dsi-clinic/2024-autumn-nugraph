@@ -24,8 +24,7 @@ echo $ckpt_path # This will print ckpt_path in .out file
 # Choice 1: --logdir /net/projects/fermi-gnn/%u --name vertex
 # Choice 2: --resume $ckpt_path
 srun python /home/ygu0929/dsi24-merge/2024-autumn-nugraph/scripts/train.py --name pmt --version 24.7.1 --project nugraph --data-path /net/projects/fermi-gnn/24summer/helal/preprocessing3/graph.h5 --event --semantic --filter --instance --vertex
-# /net/projects/fermi-gnn/CHEP2023.gnn.h5
-# /net/projects/fermi-gnn/24autumn/edward/24summer_replication/24summer/ashmit/preprocessing3/graph.h5
+
 # This is an examble submission command
 # You submit through the terminal after activating numl-dsi
 # sbatch /net/projects/fermi-gnn/24summer/ashmit/NuGraph/scripts/train_batch_dsi.sh --version attentional-mlp-64-sementic-filter --semantic --filter
