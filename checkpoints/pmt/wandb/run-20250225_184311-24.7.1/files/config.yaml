@@ -1,0 +1,90 @@
+_wandb:
+    value:
+        cli_version: 0.18.7
+        m:
+            - "1": trainer/global_step
+              "6":
+                - 3
+              "7": []
+        python_version: 3.10.15
+        t:
+            "1":
+                - 1
+                - 5
+                - 9
+                - 53
+                - 54
+                - 55
+                - 77
+                - 103
+            "2":
+                - 1
+                - 5
+                - 9
+                - 53
+                - 54
+                - 55
+                - 77
+                - 103
+            "3":
+                - 5
+                - 7
+                - 13
+                - 14
+                - 23
+                - 55
+                - 62
+                - 66
+            "4": 3.10.15
+            "5": 0.18.7
+            "8":
+                - 5
+            "12": 0.18.7
+            "13": linux-x86_64
+event_classes:
+    value:
+        - cc_nue
+        - cc_numu
+        - cc_nutau
+        - nc
+event_head:
+    value: true
+filter_head:
+    value: true
+flash_features:
+    value: 32
+hit_features:
+    value: 128
+in_features:
+    value: 5
+instance_features:
+    value: 32
+instance_head:
+    value: true
+interaction_features:
+    value: 32
+lr:
+    value: 0.001
+nexus_features:
+    value: 32
+num_iters:
+    value: 5
+ophit_features:
+    value: 128
+pmt_features:
+    value: 64
+s_b:
+    value: 1
+semantic_classes:
+    value:
+        - MIP
+        - HIP
+        - shower
+        - michel
+        - diffuse
+semantic_head:
+    value: true
+use_checkpointing:
+    value: true
+vertex_head:
+    value: true

@@ -16,7 +16,7 @@ class HitGraphProducer(ProcessorBase):
                  event_labeller: Callable = None,
                  label_vertex: bool = False,
                  label_position: bool = False,
-                 optical: bool = False,
+                 optical: bool = True,
                  planes: list[str] = ['u','v','y'],
                  node_pos: list[str] = ['local_wire','local_time'],
                  pos_norm: list[float] = [0.3,0.055],
@@ -248,6 +248,41 @@ class HitGraphProducer(ProcessorBase):
             # 3rd hierarchical layer
             edge3 = torch.tensor([opflash["flash_id"].values[0], 0])
             data["opflash", "in", "evt"].edge_index = edge3
+
+            # layer between spacepoint and opflash level in optical data
+            # dictionary that maps sumpe values to y-z coordinates
+            # generate list of y-z coordinates to build edges on opflashsumpe levels
+
+            # layer between spacepoint and opflash level in optical data
+            # dictionary that maps sumpe values to y-z coordinates
+            # generate list of y-z coordinates to build edges on opflashsumpe levels
+            # 
+            list_y = [55.267144, 55.962509, 27.555318, -0.850317, 117.276985,
+                      117.276985, -56.447756, 55.442895, 55.789304, -0.675445,
+                      0.017374, -56.275066, -56.274171, 55.616099, 55.616099,
+                      -0.50224,-1.021855, -56.100966, -56.100966, 54.750076,
+                      54.749983, -0.675445, -0.84865, -56.96699,-56.274171,
+                      55.096391, 55.269595, 27.556793,-0.502415, -28.734833,
+                      -56.274171, -56.620838]
+            
+            list_z = [951.85, 911.05, 989.65, 865.45, 911.95, 751.75, 710.95,
+                      796.15, 664.15, 752.05, 711.25, 540.85, 500.05, 585.25,
+                      452.95, 540.55, 500.35, 328.15, 287.95, 373.75, 242.05,
+                      328.45, 287.65, 128.35, 87.85, 51.25, 173.65, 50.35, 
+                      128.05, 87.85]
+            
+            opflashsumpe_information = pd.DataFrame({'y': list_y, 'z': list_z})
+            opflashsumpe_nodes = torch.tensor(opflashsumpe_information[['y', 'z']].values)
+            spacepoints_nodes = torch.tensor(spacepoints[["position_y", "position_z"]].values)
+
+            distances = torch.cdist(spacepoints_nodes, opflashsumpe_nodes, p=2)
+            _, nearest_indices = torch.topk(distances, 2, largest=False, dim=1)
+
+            spacepoints_indices = torch.arange(spacepoints_nodes.size(0)).repeat_interleave(2)
+            opflashsumpe_indices = nearest_indices.flatten()
+
+            edges = torch.stack([spacepoints_indices, opflashsumpe_indices], dim=0)
+            data["sp", "nexus_optical", "opflashsumpe"].edge_index = edges.long()
 
         # event label
         if self.event_labeller:

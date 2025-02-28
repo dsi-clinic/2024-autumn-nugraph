@@ -87,8 +87,12 @@ class HierarchicalEdges(BaseTransform):
 
             lo, hi = data["opflashsumpe", "flash", "opflash"].edge_index
             data["opflash", "flash", "opflashsumpe"].edge_index = torch.stack((hi, lo), dim=0)
+            
+            # add intermediate nexus -> flash data
+            lo, hi = data["sp", "nexus_optical", "opflashsumpe"].edge_index
+            data["opflashsumpe", "nexus_optical", "sp"].edge_index = torch.stack((hi, lo), dim=0)
 
-            lo, hi = data["opflash", "in", "evt"].edge_index
-            data["evt", "in", "opflash"].edge_index = torch.stack((hi, lo), dim=0)
+            lo, hi = data["opflashsumpe", "in", "evt"].edge_index
+            data["evt", "in", "opflashsumpe"].edge_index = torch.stack((hi, lo), dim=0)
 
         return data

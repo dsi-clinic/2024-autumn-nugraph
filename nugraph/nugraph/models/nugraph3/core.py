@@ -135,6 +135,9 @@ class NuGraphCore(nn.Module):
         self.flash_to_pmt = NuGraphBlock(flash_features, pmt_features, pmt_features)
         self.pmt_to_ophit = NuGraphBlock(pmt_features, ophit_features, ophit_features)
 
+        self.nexus_to_pmt = NuGraphBlock(nexus_features, pmt_features, pmt_features)
+        self.pmt_to_nexus = NuGraphBlock(pmt_features, nexus_features, nexus_features)
+
     def checkpoint(self, net: nn.Module, *args) -> TD:
         """
         Checkpoint module, if enabled.
@@ -210,3 +213,13 @@ class NuGraphCore(nn.Module):
         data["hit"].x = self.checkpoint(
             self.nexus_to_plane, (data["sp"].x, data["hit"].x),
             data["hit", "nexus", "sp"].edge_index[(1,0), :])
+        
+        # ADDED: message-passing from nexus to pmt
+        data['opflashsumpe'].x = self.checkpoint(
+            self.nexus_to_pmt, (data["sp"].x, data["opflashsumpe"].x),
+            data["sp", "nexus_optical", "opflashsumpe"].edge_index[(1,0), :])
+        
+        # ADDED: message-passing from pmt to nexus
+        data['sp'].x = self.checkpoint(
+            self.pmt_to_nexus, (data["opflashsumpe"].x, data["sp"].x),
+            data["opflashsumpe", "nexus_optical", "sp"].edge_index[(1,0), :])
