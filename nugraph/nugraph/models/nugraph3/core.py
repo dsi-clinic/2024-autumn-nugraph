@@ -8,7 +8,7 @@ from .types import T, TD, Data
 class NuGraphBlock(MessagePassing): # pylint: disable=abstract-method
     """
     Standard NuGraph message-passing block
-    
+      
     This block generates attention weights for each graph edge based on both
     the source and target node features, and then applies those weights to
     the source node features in order to form messages. These messages are
@@ -37,7 +37,7 @@ class NuGraphBlock(MessagePassing): # pylint: disable=abstract-method
     def forward(self, x: T, edge_index: T) -> T: # pylint: disable=arguments-differ
         """
         NuGraphBlock forward pass
-        
+          
         Args:
             x: Node feature tensor
             edge_index: Edge index tensor
@@ -52,7 +52,7 @@ class NuGraphBlock(MessagePassing): # pylint: disable=abstract-method
         source and target nodes are concatenated and fed into a linear layer
         to construct attention weights. Messages are then formed on edges by
         weighting the source node features by these attention weights.
-        
+          
         Args:
             x_i: Edge features from target nodes
             x_j: Edge features from source nodes
@@ -77,19 +77,21 @@ class NuGraphBlock(MessagePassing): # pylint: disable=abstract-method
 class NuGraphCore(nn.Module):
     """
     NuGraph core message-passing engine
-    
+      
     This is the core NuGraph message-passing loop
 
     Args:
         hit_features: Number of features in planar embedding
         nexus_features: Number of features in nexus embedding
         interaction_features: Number of features in interaction embedding
+        flash_features: Number of features in optical flash embedding
         use_checkpointing: Whether to use checkpointing
     """
     def __init__(self,
                  hit_features: int,
                  nexus_features: int,
                  interaction_features: int,
+                 flash_features: int = 32,
                  use_checkpointing: bool = True):
         super().__init__()
 
@@ -108,7 +110,6 @@ class NuGraphCore(nn.Module):
                                                  interaction_features,
                                                  interaction_features)
 
-
         # message-passing from interaction nodes to nexus nodes
         self.interaction_to_nexus = NuGraphBlock(interaction_features,
                                                  nexus_features,
@@ -118,10 +119,16 @@ class NuGraphCore(nn.Module):
         self.nexus_to_plane = NuGraphBlock(nexus_features, hit_features,
                                            hit_features)
 
+        # message-passing between nexus nodes and optical flash nodes
+        self.nexus_to_flash = NuGraphBlock(nexus_features, flash_features, 
+                                          flash_features)
+        self.flash_to_nexus = NuGraphBlock(flash_features, nexus_features,
+                                          nexus_features)
+
     def checkpoint(self, net: nn.Module, *args) -> TD:
         """
         Checkpoint module, if enabled.
-        
+          
         Args:
             net: Network module
             args: Arguments to network module
@@ -134,7 +141,7 @@ class NuGraphCore(nn.Module):
     def forward(self, data: Data) -> None:
         """
         NuGraphCore forward pass
-        
+          
         Args:
             data: Graph data object
         """
@@ -163,3 +170,15 @@ class NuGraphCore(nn.Module):
         data["hit"].x = self.checkpoint(
             self.nexus_to_plane, (data["sp"].x, data["hit"].x),
             data["hit", "nexus", "sp"].edge_index[(1,0), :])
+
+        # Check if proximity edges between nexus and flash exist
+        if "opflash" in data.node_types and ("sp", "proximity", "opflash") in data.edge_types:
+            # message-passing from nexus to flash
+            data["opflash"].x = self.checkpoint(
+                self.nexus_to_flash, (data["sp"].x, data["opflash"].x),
+                data["sp", "proximity", "opflash"].edge_index)
+            
+            # message-passing from flash to nexus
+            data["sp"].x = self.checkpoint(
+                self.flash_to_nexus, (data["opflash"].x, data["sp"].x),
+                data["opflash", "proximity", "sp"].edge_index)
