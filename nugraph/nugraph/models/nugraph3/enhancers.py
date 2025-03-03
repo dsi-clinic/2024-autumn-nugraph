@@ -2,7 +2,7 @@
 import torch
 from torch import nn
 from torch_geometric.utils import degree, softmax
-from torch_scatter import scatter_sum, scatter_mean
+from torch_scatter import scatter_sum
 from torch_geometric.nn import MessagePassing
 from .types import Data
 
@@ -57,14 +57,9 @@ class MichelEnhancer(nn.Module):
         # Apply feature-wise weighting (scaled to sum to 1.0)
         weights = torch.softmax(self.feature_weights, dim=0)
         
-        # Enhance features while maintaining original characteristics
-        endpoint_features = torch.cat([
-            endpoint_score.unsqueeze(1) * weights[0],
-            endpoint_propagation.unsqueeze(1) * weights[1]
-        ], dim=1)
-        
-        # Process with reduced dimensionality network
-        enhanced = self.endpoint_net(x_orig)
+        # Process with reduced dimensionality network and use endpoint information
+        endpoint_factor = weights[0] * endpoint_score.unsqueeze(1) + weights[1] * endpoint_propagation.unsqueeze(1)
+        enhanced = self.endpoint_net(x_orig) * endpoint_factor
         
         # Mix original and enhanced features with layernorm for stability
         # This is a residual connection that helps prevent loss of information
@@ -121,7 +116,6 @@ class DiffuseEnhancer(nn.Module):
         """
         # Get edge index for hits
         edge_index = data["hit", "delaunay-planar", "hit"].edge_index
-        num_nodes = data["hit"].num_nodes
         
         # Original hit features
         x_orig = data["hit"].x
