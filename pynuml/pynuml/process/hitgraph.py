@@ -1,3 +1,4 @@
+"""Process event into graphs"""
 from typing import Any, Callable
 
 import torch
@@ -95,14 +96,14 @@ class HitGraphProducer(ProcessorBase):
         if self.semantic_labeller:
             edeps = evt['edep_table']
             energy_col = 'energy' if 'energy' in edeps.columns else 'energy_fraction' # for backwards compatibility
-        
+          
             # get ID of max particle
             g4_id = edeps[[energy_col, 'g4_id', 'hit_id']]
             g4_id = g4_id.sort_values(by=[energy_col],
                                       ascending=False,
                                       kind='mergesort').drop_duplicates('hit_id')
             hits = g4_id.merge(hits, on='hit_id', how='right')
-            
+              
             # charge-weighted average of 3D position
             if self.label_position:
                 edeps = edeps[["hit_id", "energy", "x_position", "y_position", "z_position"]]
@@ -156,7 +157,7 @@ class HitGraphProducer(ProcessorBase):
 
         # spacepoint nodes
         if "position_x" in spacepoints.keys():
-            data["sp"].pos = torch.tensor(spacepoints[[f"position_{c}" for c in ("x", "y", "z")]].values).float()
+            data["sp"].pos = torch.tensor(spacepoints[["position_x", "position_y", "position_z"]].values).float()
         else:
             data['sp'].num_nodes = spacepoints.shape[0]
 
@@ -233,7 +234,6 @@ class HitGraphProducer(ProcessorBase):
 
         # optical system
         if self.optical:
-
             ophits = evt["ophit_table"]
             sum_pe = evt["opflashsumpe_table"]
             opflash = evt["opflash_table"]
@@ -244,10 +244,10 @@ class HitGraphProducer(ProcessorBase):
 
             # node features
             data["ophits"].x = torch.tensor(ophits[["amplitude", "area",  "pe", "peaktime",
-                                                    "width", "wire_pos_0", "wire_pos_1", "wire_pos_2",]].values).float()
+                                                  "width", "wire_pos_0", "wire_pos_1", "wire_pos_2",]].values).float()
             data["opflash"].x = torch.tensor(opflash[["time", "time_width", "totalpe", "wire_pos_0", 
-                                                    "wire_pos_1", "wire_pos_2", "y_center", "y_width", 
-                                                    "z_center", "z_width"]].values).float()
+                                                  "wire_pos_1", "wire_pos_2", "y_center", "y_width", 
+                                                  "z_center", "z_width"]].values).float()
             data["opflashsumpe"].x = torch.tensor(sum_pe[["pmt_channel", "sumpe"]].values).float()
 
             # 1st hierarchical layer
@@ -261,6 +261,31 @@ class HitGraphProducer(ProcessorBase):
             # 3rd hierarchical layer
             edge3 = torch.tensor([opflash["flash_id"].values[0], 0])
             data["opflash", "in", "evt"].edge_index = edge3
+
+            # Add proximity-based edges between space points and optical flashes
+            if "position_x" in spacepoints.keys() and data["sp"].pos.size(0) > 0 and data["opflash"].pos.size(0) > 0:
+                # Calculate Euclidean distances between space points and optical flashes
+                sp_pos = data["sp"].pos
+                flash_pos = data["opflash"].pos
+                
+                # Calculate pairwise distances between space points and flashes
+                distances = torch.cdist(sp_pos, flash_pos)
+                
+                # Connect each space point to its closest optical flash
+                # If distance is below threshold (adjusted based on detector scale)
+                max_distance = 50.0  # Distance threshold in detector units
+                
+                # Get indices of closest flash for each space point
+                closest_flash_idx = torch.argmin(distances, dim=1)
+                valid_connections = torch.gather(distances, 1, closest_flash_idx.unsqueeze(1)).squeeze(1) < max_distance
+                
+                sp_indices = torch.arange(sp_pos.size(0), device=sp_pos.device)[valid_connections]
+                flash_indices = closest_flash_idx[valid_connections]
+                
+                # Create bidirectional edges between space points and optical flashes
+                if sp_indices.size(0) > 0:
+                    data["sp", "proximity", "opflash"].edge_index = torch.stack((sp_indices, flash_indices), dim=0)
+                    data["opflash", "proximity", "sp"].edge_index = torch.stack((flash_indices, sp_indices), dim=0)
 
         # event label
         if self.event_labeller:
