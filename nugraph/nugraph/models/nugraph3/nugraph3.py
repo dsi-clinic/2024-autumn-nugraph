@@ -12,6 +12,7 @@ from .types import Data
 from .encoder import Encoder
 from .core import NuGraphCore
 from .optical import NuGraphOptical
+from .enhancers import MichelEnhancer, DiffuseEnhancer
 from .decoders import (SemanticDecoder, FilterDecoder, EventDecoder, VertexDecoder, InstanceDecoder,
                        SpacepointDecoder)
 
@@ -45,6 +46,8 @@ class NuGraph3(LightningModule):
         spacepoint_head: Whether to enable spacepoint decoder
         use_optical: Whether to perform message-passing in optical system
         use_checkpointing: Whether to use checkpointing
+        use_michel_enhancer: Whether to enable Michel electron enhancer
+        use_diffuse_enhancer: Whether to enable diffuse particle enhancer
         lr: Learning rate
     """
     def __init__(self,
@@ -67,6 +70,8 @@ class NuGraph3(LightningModule):
                  spacepoint_head: bool = False,
                  use_optical: bool = False,
                  use_checkpointing: bool = False,
+                 use_michel_enhancer: bool = False,
+                 use_diffuse_enhancer: bool = False,
                  lr: float = 0.001):
         super().__init__()
 
@@ -89,7 +94,15 @@ class NuGraph3(LightningModule):
         self.core_net = NuGraphCore(hit_features=hit_features,
                                     nexus_features=nexus_features,
                                     interaction_features=interaction_features,
+                                    flash_features=flash_features,
                                     use_checkpointing=use_checkpointing)
+
+        # Add the feature enhancers if enabled
+        if use_michel_enhancer:
+            self.michel_enhancer = MichelEnhancer(hit_features=hit_features)
+        
+        if use_diffuse_enhancer:
+            self.diffuse_enhancer = DiffuseEnhancer(hit_features=hit_features)
 
         if use_optical:
             self.optical_net = NuGraphOptical(interaction_features=interaction_features,
@@ -145,6 +158,14 @@ class NuGraph3(LightningModule):
             self.core_net(data)
             if hasattr(self, "optical_net"):
                 self.optical_net(data)
+        
+        # Apply feature enhancers if enabled
+        if hasattr(self, "michel_enhancer"):
+            self.michel_enhancer(data)
+        
+        if hasattr(self, "diffuse_enhancer"):
+            self.diffuse_enhancer(data)
+            
         total_loss = 0.
         total_metrics = {}
         for decoder in self.decoders:
@@ -243,6 +264,10 @@ class NuGraph3(LightningModule):
         model.add_argument('--no-checkpointing', action='store_false',
                            dest="use_checkpointing",
                            help='Disable checkpointing during training')
+        model.add_argument('--michel-enhancer', action='store_true',
+                           help='Enable Michel electron enhancer module')
+        model.add_argument('--diffuse-enhancer', action='store_true',
+                           help='Enable diffuse particle enhancer module')
         model.add_argument('--epochs', type=int, default=80,
                            help='Maximum number of epochs to train for')
         model.add_argument('--learning-rate', type=float, default=0.001,
@@ -277,4 +302,6 @@ class NuGraph3(LightningModule):
             instance_head=args.instance,
             spacepoint_head=args.spacepoint,
             use_checkpointing=args.use_checkpointing,
+            use_michel_enhancer=args.michel_enhancer,
+            use_diffuse_enhancer=args.diffuse_enhancer,
             lr=args.learning_rate)
