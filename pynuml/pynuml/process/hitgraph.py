@@ -3,7 +3,6 @@ from typing import Any, Callable
 
 import torch
 import torch_geometric as pyg
-import numpy as np
 
 from ..data import NuGraphData
 from .base import ProcessorBase
