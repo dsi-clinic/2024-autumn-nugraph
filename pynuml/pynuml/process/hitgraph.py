@@ -3,6 +3,7 @@ from typing import Any, Callable
 
 import torch
 import torch_geometric as pyg
+import numpy as np
 
 from ..data import NuGraphData
 from .base import ProcessorBase
@@ -16,7 +17,7 @@ class HitGraphProducer(ProcessorBase):
                  event_labeller: Callable = None,
                  label_vertex: bool = False,
                  label_position: bool = False,
-                 optical: bool = False,
+                 optical: bool = True,
                  planes: list[str] = ['u','v','y'],
                  node_feats: list[str] = ['integral','rms','tpc'],
                  lower_bound: int = 20,
@@ -238,54 +239,89 @@ class HitGraphProducer(ProcessorBase):
             sum_pe = evt["opflashsumpe_table"]
             opflash = evt["opflash_table"]
 
-            # node position
+            # node position and features for optical system components
             data["ophits"].pos = torch.tensor(ophits[["wire_pos_0", "wire_pos_1", "wire_pos_2"]].values).float()
             data["opflash"].pos = torch.tensor(opflash[["wire_pos_0", "wire_pos_1", "wire_pos_2"]].values).float()
-
-            # node features
-            data["ophits"].x = torch.tensor(ophits[["amplitude", "area",  "pe", "peaktime",
+            data["ophits"].x = torch.tensor(ophits[["amplitude", "area", "pe", "peaktime",
                                                   "width", "wire_pos_0", "wire_pos_1", "wire_pos_2",]].values).float()
             data["opflash"].x = torch.tensor(opflash[["time", "time_width", "totalpe", "wire_pos_0", 
                                                   "wire_pos_1", "wire_pos_2", "y_center", "y_width", 
                                                   "z_center", "z_width"]].values).float()
+            
+            # PMT (opflashsumpe) features
             data["opflashsumpe"].x = torch.tensor(sum_pe[["pmt_channel", "sumpe"]].values).float()
+            
+            # Derive PMT positions from pmt_channel based on detector geometry
+            # This uses the fact that PMTs are at fixed positions in the detector
+            
+            # Check if we have position-related columns in sum_pe
+            pmt_pos_derived = False
+            if "pmt_pos_x" in sum_pe.columns and "pmt_pos_y" in sum_pe.columns and "pmt_pos_z" in sum_pe.columns:
+                # If position columns exist directly, use them
+                data["opflashsumpe"].pos = torch.tensor(sum_pe[["pmt_pos_x", "pmt_pos_y", "pmt_pos_z"]].values).float()
+                pmt_pos_derived = True
+            
+            if not pmt_pos_derived:
+                # If we don't have direct position columns, derive them from pmt_channel
+                # MicroBooNE detector has PMTs arranged in a specific pattern
+                # This is a simplified mapping that assumes PMT channels correspond to positions
+                # in a grid-like arrangement
 
-            # 1st hierarchical layer
+                # Number of PMTs in the dataset
+                num_pmts = data["opflashsumpe"].x.size(0)
+                
+                # Create position tensor
+                pmt_positions = torch.zeros((num_pmts, 3), device=data["opflashsumpe"].x.device)
+                
+                # Extract PMT channels
+                pmt_channels = data["opflashsumpe"].x[:, 0].long()
+                
+                # Map channels to positions using a simple transformation
+                # This is a placeholder - in a real implementation, you would use
+                # the actual detector geometry information
+                for i, channel in enumerate(pmt_channels):
+                    # Simple mapping formula (illustrative - should be replaced with actual detector geometry)
+                    x = float(channel % 10) * 25.0  # 25 cm spacing in x
+                    y = float((channel // 10) % 10) * 25.0  # 25 cm spacing in y
+                    z = float(channel // 100) * 25.0  # 25 cm spacing in z
+                    
+                    pmt_positions[i, 0] = x
+                    pmt_positions[i, 1] = y
+                    pmt_positions[i, 2] = z
+                
+                data["opflashsumpe"].pos = pmt_positions
+
+            # 1st hierarchical layer - ophits to opflashsumpe
             edge1 = torch.tensor(ophits[["hit_id","sumpe_id"]].values.transpose())
             data["ophits", "sumpe", "opflashsumpe"].edge_index = edge1.long()
 
-            # 2nd hierarchical layer
+            # 2nd hierarchical layer - opflashsumpe to opflash
             edge2 = torch.tensor(sum_pe[["sumpe_id", "flash_id"]].values.transpose())
             data["opflashsumpe", "flash", "opflash"].edge_index = edge2.long()
 
-            # 3rd hierarchical layer
+            # 3rd hierarchical layer - opflash to event
             edge3 = torch.tensor([opflash["flash_id"].values[0], 0])
             data["opflash", "in", "evt"].edge_index = edge3
 
-            # Add proximity-based edges between space points and optical flashes
-            if "position_x" in spacepoints.keys() and data["sp"].pos.size(0) > 0 and data["opflash"].pos.size(0) > 0:
-                # Calculate Euclidean distances between space points and optical flashes
+            # Create proximity-based edges between space points and PMTs (opflashsumpe)
+            if "position_x" in spacepoints.keys() and data["sp"].pos.size(0) > 0 and hasattr(data["opflashsumpe"], "pos"):
+                # Calculate Euclidean distances between space points and PMTs
                 sp_pos = data["sp"].pos
-                flash_pos = data["opflash"].pos
+                pmt_pos = data["opflashsumpe"].pos
                 
-                # Calculate pairwise distances between space points and flashes
-                distances = torch.cdist(sp_pos, flash_pos)
+                # Calculate pairwise distances between space points and PMTs
+                distances = torch.cdist(sp_pos, pmt_pos)
                 
-                # Connect each space point to its closest optical flash
-                # If distance is below threshold (adjusted based on detector scale)
+                # For each space point, create edges to all PMTs within range
                 max_distance = 50.0  # Distance threshold in detector units
                 
-                # Get indices of closest flash for each space point
-                closest_flash_idx = torch.argmin(distances, dim=1)
-                valid_connections = torch.gather(distances, 1, closest_flash_idx.unsqueeze(1)).squeeze(1) < max_distance
+                # Find all connections below threshold distance
+                connections = (distances < max_distance).nonzero(as_tuple=True)
                 
-                sp_indices = torch.arange(sp_pos.size(0), device=sp_pos.device)[valid_connections]
-                flash_indices = closest_flash_idx[valid_connections]
-                
-                # Create bidirectional edges between space points and optical flashes
-                if sp_indices.size(0) > 0:
-                    data["sp", "proximity", "opflash"].edge_index = torch.stack((sp_indices, flash_indices), dim=0)
-                    data["opflash", "proximity", "sp"].edge_index = torch.stack((flash_indices, sp_indices), dim=0)
+                # Create bidirectional edges between space points and PMTs
+                if len(connections[0]) > 0:
+                    data["sp", "proximity", "opflashsumpe"].edge_index = torch.stack(connections)
+                    data["opflashsumpe", "proximity", "sp"].edge_index = torch.stack((connections[1], connections[0]))
 
         # event label
         if self.event_labeller:
