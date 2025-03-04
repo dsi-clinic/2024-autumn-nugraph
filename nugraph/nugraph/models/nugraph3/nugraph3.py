@@ -95,6 +95,7 @@ class NuGraph3(LightningModule):
                                     nexus_features=nexus_features,
                                     interaction_features=interaction_features,
                                     flash_features=flash_features,
+                                    pmt_features=pmt_features,
                                     use_checkpointing=use_checkpointing)
 
         # Add the feature enhancers if enabled
