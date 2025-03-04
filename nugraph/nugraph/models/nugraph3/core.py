@@ -85,6 +85,7 @@ class NuGraphCore(nn.Module):
         nexus_features: Number of features in nexus embedding
         interaction_features: Number of features in interaction embedding
         flash_features: Number of features in optical flash embedding
+        pmt_features: Number of features in PMT (opflashsumpe) embedding
         use_checkpointing: Whether to use checkpointing
     """
     def __init__(self,
@@ -92,6 +93,7 @@ class NuGraphCore(nn.Module):
                  nexus_features: int,
                  interaction_features: int,
                  flash_features: int = 32,
+                 pmt_features: int = 64,
                  use_checkpointing: bool = True):
         super().__init__()
 
@@ -119,11 +121,11 @@ class NuGraphCore(nn.Module):
         self.nexus_to_plane = NuGraphBlock(nexus_features, hit_features,
                                            hit_features)
 
-        # message-passing between nexus nodes and optical flash nodes
-        self.nexus_to_flash = NuGraphBlock(nexus_features, flash_features, 
-                                          flash_features)
-        self.flash_to_nexus = NuGraphBlock(flash_features, nexus_features,
-                                          nexus_features)
+        # message-passing between nexus nodes and PMT nodes (opflashsumpe)
+        self.nexus_to_pmt = NuGraphBlock(nexus_features, pmt_features, 
+                                        pmt_features)
+        self.pmt_to_nexus = NuGraphBlock(pmt_features, nexus_features,
+                                        nexus_features)
 
     def checkpoint(self, net: nn.Module, *args) -> TD:
         """
@@ -171,14 +173,14 @@ class NuGraphCore(nn.Module):
             self.nexus_to_plane, (data["sp"].x, data["hit"].x),
             data["hit", "nexus", "sp"].edge_index[(1,0), :])
 
-        # Check if proximity edges between nexus and flash exist
-        if "opflash" in data.node_types and ("sp", "proximity", "opflash") in data.edge_types:
-            # message-passing from nexus to flash
-            data["opflash"].x = self.checkpoint(
-                self.nexus_to_flash, (data["sp"].x, data["opflash"].x),
-                data["sp", "proximity", "opflash"].edge_index)
+        # Check if proximity edges between space points and PMTs exist
+        if "opflashsumpe" in data.node_types and ("sp", "proximity", "opflashsumpe") in data.edge_types:
+            # message-passing from space points to PMTs
+            data["opflashsumpe"].x = self.checkpoint(
+                self.nexus_to_pmt, (data["sp"].x, data["opflashsumpe"].x),
+                data["sp", "proximity", "opflashsumpe"].edge_index)
             
-            # message-passing from flash to nexus
+            # message-passing from PMTs to space points
             data["sp"].x = self.checkpoint(
-                self.flash_to_nexus, (data["opflash"].x, data["sp"].x),
-                data["opflash", "proximity", "sp"].edge_index)
+                self.pmt_to_nexus, (data["opflashsumpe"].x, data["sp"].x),
+                data["opflashsumpe", "proximity", "sp"].edge_index)
