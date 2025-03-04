@@ -91,11 +91,11 @@ class HierarchicalEdges(BaseTransform):
             lo, hi = data["opflash", "in", "evt"].edge_index
             data["evt", "in", "opflash"].edge_index = torch.stack((hi, lo), dim=0)
 
-        # Handle proximity-based edges between space points and optical components
-        key_sp_flash = ("sp", "proximity", "opflash")
-        key_flash_sp = ("opflash", "proximity", "sp")
+        # Handle proximity-based edges between space points and PMTs (opflashsumpe)
+        key_sp_pmt = ("sp", "proximity", "opflashsumpe")
+        key_pmt_sp = ("opflashsumpe", "proximity", "sp")
 
-        if key_sp_flash in data.edge_types and key_flash_sp in data.edge_types:
+        if key_sp_pmt in data.edge_types and key_pmt_sp in data.edge_types:
             # Preserve these edges as they're already properly constructed in preprocessing
             pass  # We keep them as is since they're already properly configured
 
