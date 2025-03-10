@@ -4,6 +4,7 @@ import torch
 from torch_geometric.data import HeteroData
 from torch_geometric.transforms import BaseTransform
 
+
 class HierarchicalEdges(BaseTransform):
     """
     Add simple edge indices to interaction level
@@ -104,13 +105,5 @@ class HierarchicalEdges(BaseTransform):
                 data["evt", "in", "opflashsumpe"].edge_index = torch.stack(
                     (hi, lo), dim=0
                 )
-
-        # Handle proximity-based edges between space points and PMTs (opflashsumpe)
-        key_sp_pmt = ("sp", "proximity", "opflashsumpe")
-        key_pmt_sp = ("opflashsumpe", "proximity", "sp")
-
-        if key_sp_pmt in data.edge_types and key_pmt_sp in data.edge_types:
-            # Preserve these edges as they're already properly constructed in preprocessing
-            pass  # We keep them as is since they're already properly configured
 
         return data
