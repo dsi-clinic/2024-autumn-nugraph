@@ -172,15 +172,3 @@ class NuGraphCore(nn.Module):
         data["hit"].x = self.checkpoint(
             self.nexus_to_plane, (data["sp"].x, data["hit"].x),
             data["hit", "nexus", "sp"].edge_index[(1,0), :])
-
-        # Check if proximity edges between space points and PMTs exist
-        if "opflashsumpe" in data.node_types and ("sp", "proximity", "opflashsumpe") in data.edge_types:
-            # message-passing from space points to PMTs
-            data["opflashsumpe"].x = self.checkpoint(
-                self.nexus_to_pmt, (data["sp"].x, data["opflashsumpe"].x),
-                data["sp", "proximity", "opflashsumpe"].edge_index)
-            
-            # message-passing from PMTs to space points
-            data["sp"].x = self.checkpoint(
-                self.pmt_to_nexus, (data["opflashsumpe"].x, data["sp"].x),
-                data["opflashsumpe", "proximity", "sp"].edge_index)

@@ -1,4 +1,5 @@
 """Transform to add hierarchical interaction edges"""
+
 import torch
 from torch_geometric.data import HeteroData
 from torch_geometric.transforms import BaseTransform
@@ -16,7 +17,6 @@ class HierarchicalEdges(BaseTransform):
         self.planes = planes
 
     def __call__(self, data: HeteroData) -> HeteroData:
-
         # no-op if the graph data is already structured how we want
         if "hit" in data.node_types:
             return data
@@ -26,19 +26,19 @@ class HierarchicalEdges(BaseTransform):
         edge_nexus = []
         for i, p in enumerate(self.planes):
             offset = 0
-            for j in range(i): # get offset from previous planes
+            for j in range(i):  # get offset from previous planes
                 offset += data[self.planes[j]].num_nodes
             edge_plane.append(data[p, "plane", p].edge_index + offset)
             del data[p, "plane", p]
             edge_nexus.append(data[p, "nexus", "sp"].edge_index)
-            edge_nexus[-1][0] += offset # increment only the plane node index
+            edge_nexus[-1][0] += offset  # increment only the plane node index
             del data[p, "nexus", "sp"]
         data["hit", "delaunay-planar", "hit"].edge_index = torch.cat(edge_plane, dim=1)
         data["hit", "nexus", "sp"].edge_index = torch.cat(edge_nexus, dim=1)
 
         # add plane index to feature tensor
         for i, p in enumerate(self.planes):
-            data[p].plane = torch.empty_like(data[p].x[:,0], dtype=int).fill_(i)
+            data[p].plane = torch.empty_like(data[p].x[:, 0], dtype=int).fill_(i)
             data[p].x = torch.cat([data[p].x, data[p].plane.unsqueeze(1)], dim=1)
 
         # merge planar node stores
@@ -79,17 +79,31 @@ class HierarchicalEdges(BaseTransform):
             mask = data[key].edge_index[1] > -1
             data[key].edge_index = data[key].edge_index[:, mask]
             lo, hi = data[key].edge_index
-            data["opflashsumpe", "sumpe", "ophits"].edge_index = torch.stack((hi, lo), dim=0)
+            data["opflashsumpe", "sumpe", "ophits"].edge_index = torch.stack(
+                (hi, lo), dim=0
+            )
 
             hi = torch.zeros(len(lo), dtype=torch.int8)
             data["ophits", "in", "evt"].edge_index = torch.stack((lo, hi), dim=0)
             data["evt", "in", "ophits"].edge_index = torch.stack((hi, lo), dim=0)
 
             lo, hi = data["opflashsumpe", "flash", "opflash"].edge_index
-            data["opflash", "flash", "opflashsumpe"].edge_index = torch.stack((hi, lo), dim=0)
+            data["opflash", "flash", "opflashsumpe"].edge_index = torch.stack(
+                (hi, lo), dim=0
+            )
 
-            lo, hi = data["opflash", "in", "evt"].edge_index
-            data["evt", "in", "opflash"].edge_index = torch.stack((hi, lo), dim=0)
+            conn_key = ("sp", "connection", "opflashsumpe")
+            if conn_key in data.edge_types:
+                # add intermediate nexus -> flash data
+                lo, hi = data["sp", "connection", "opflashsumpe"].edge_index
+                data["opflashsumpe", "connection", "sp"].edge_index = torch.stack(
+                    (hi, lo), dim=0
+                )
+
+                lo, hi = data["opflashsumpe", "in", "evt"].edge_index
+                data["evt", "in", "opflashsumpe"].edge_index = torch.stack(
+                    (hi, lo), dim=0
+                )
 
         # Handle proximity-based edges between space points and PMTs (opflashsumpe)
         key_sp_pmt = ("sp", "proximity", "opflashsumpe")
