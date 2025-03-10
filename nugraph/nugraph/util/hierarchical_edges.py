@@ -4,7 +4,6 @@ import torch
 from torch_geometric.data import HeteroData
 from torch_geometric.transforms import BaseTransform
 
-
 class HierarchicalEdges(BaseTransform):
     """
     Add simple edge indices to interaction level
