@@ -1,11 +1,12 @@
+"""Process event into graphs"""
 from typing import Any, Callable
 import pandas as pd
 
 import torch
 import torch_geometric as pyg
 
+from ..data import NuGraphData
 from .base import ProcessorBase
-
 
 class HitGraphProducer(ProcessorBase):
     """Process event into graphs"""
@@ -33,8 +34,6 @@ class HitGraphProducer(ProcessorBase):
         self.label_position = label_position
         self.optical = optical
         self.planes = planes
-        self.node_pos = node_pos
-        self.pos_norm = torch.tensor(pos_norm).float()
         self.node_feats = node_feats
         self.lower_bound = lower_bound
         self.store_detailed_truth = store_detailed_truth
@@ -149,6 +148,7 @@ class HitGraphProducer(ProcessorBase):
                 if self.semantic_labeller
                 else planehits.shape[0]
             )
+    
             if nhits < self.lower_bound:
                 return evt.name, None
 
@@ -169,7 +169,7 @@ class HitGraphProducer(ProcessorBase):
                 return evt.name, None
             del mask
 
-        data = pyg.data.HeteroData()
+        data = NuGraphData()
 
         # event metadata
         r, sr, e = evt.event_id
@@ -187,15 +187,15 @@ class HitGraphProducer(ProcessorBase):
 
         hits = hits.reset_index(names="index_2d")
 
-        # node position
-        hits[self.node_pos] *= self.pos_norm
-        data["hit"].pos = torch.tensor(hits[self.node_pos].values).float()
+        node_pos = [proj_key, drift_key]
 
-        # plane indices
-        data["hit"].plane = torch.tensor(hits["local_plane"].values, dtype=torch.long)
+        # node position
+        data["hit"].plane = torch.tensor(hits[plane_key].values, dtype=torch.long)
+        data["hit"].pos = torch.tensor(hits[node_pos].values, dtype=torch.float)
 
         # node features
-        data["hit"].x = torch.tensor(hits[self.node_feats].values).float()
+        node_feats = self.node_feats + [plane_key, proj_key, drift_key]
+        data["hit"].x = torch.tensor(hits[node_feats].values).float()
 
         # node true position
         if self.label_position:
@@ -211,16 +211,16 @@ class HitGraphProducer(ProcessorBase):
             data["hit"]
         ).edge_index
         edge_plane = []
-        for i, plane_hits in hits.groupby("local_plane"):
+        for i, view_hits in hits.groupby(plane_key):
             tmp = pyg.data.Data()
-            tmp.index_2d = torch.tensor(plane_hits.index_2d.values).long()
-            tmp.pos = torch.tensor(plane_hits[self.node_pos].values).float()
+            tmp.index_2d = torch.tensor(view_hits.index_2d.values).long()
+            tmp.pos = torch.tensor(view_hits[node_pos].values).float()
             edge_plane.append(tmp.index_2d[self.transform(tmp).edge_index])
         data["hit", "delaunay-planar", "hit"].edge_index = torch.cat(edge_plane, dim=1)
 
         # 3D graph edges
         edge_nexus = []
-        for i, plane_hits in hits.groupby("local_plane"):
+        for i, view_hits in hits.groupby(plane_key):
             p = self.planes[i]
             edge = spacepoints.merge(
                 hits[["hit_id", "index_2d"]].add_suffix(f"_{p}"),
@@ -249,6 +249,7 @@ class HitGraphProducer(ProcessorBase):
             data["hit"].y_instance = torch.tensor(
                 hits["instance_label"].fillna(-1).values
             ).long()
+
             if self.store_detailed_truth:
                 data["hit"].g4_id = torch.tensor(hits["g4_id"].fillna(-1).values).long()
                 data["hit"].parent_id = torch.tensor(
@@ -309,11 +310,11 @@ class HitGraphProducer(ProcessorBase):
             edge1 = torch.tensor(ophits[["hit_id", "sumpe_id"]].values.transpose())
             data["ophits", "sumpe", "opflashsumpe"].edge_index = edge1.long()
 
-            # 2nd hierarchical layer
+            # 2nd hierarchical layer - opflashsumpe to opflash
             edge2 = torch.tensor(sum_pe[["sumpe_id", "flash_id"]].values.transpose())
             data["opflashsumpe", "flash", "opflash"].edge_index = edge2.long()
 
-            # 3rd hierarchical layer
+            # 3rd hierarchical layer - opflash to event
             edge3 = torch.tensor([opflash["flash_id"].values[0], 0])
             data["opflash", "in", "evt"].edge_index = edge3
 

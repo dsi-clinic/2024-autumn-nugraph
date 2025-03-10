@@ -21,6 +21,9 @@ def configure():
         default=False,
         help="add intermediate connections between opflashsumpe and nexus",
     )
+    args.add_argument("--label-position", action="store_true",
+                    help="add true 3D hit position to graphs")
+
     return args.parse_args()
 
 
@@ -35,6 +38,7 @@ def process(args):
         event_labeller=pynuml.labels.FlavorLabels(),
         label_vertex=args.label_vertex,
         connections_dev=args.connections_dev,
+        label_position=args.label_position)
     )
 
     # create output file stream
@@ -45,7 +49,5 @@ def process(args):
 
 
 if __name__ == "__main__":
-    print("Starting Processing")
     args = configure()
     process(args)
-    print("Finished Processing")

@@ -2,13 +2,13 @@
 import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
-from torch_geometric.nn import MessagePassing, HeteroConv
+from torch_geometric.nn import MessagePassing
 from .types import T, TD, Data
 
-class NuGraphBlock(MessagePassing):
+class NuGraphBlock(MessagePassing): # pylint: disable=abstract-method
     """
     Standard NuGraph message-passing block
-    
+      
     This block generates attention weights for each graph edge based on both
     the source and target node features, and then applies those weights to
     the source node features in order to form messages. These messages are
@@ -34,17 +34,17 @@ class NuGraphBlock(MessagePassing):
             nn.Linear(out_features, out_features),
             nn.Mish())
 
-    def forward(self, x: T, edge_index: T) -> T:
+    def forward(self, x: T, edge_index: T) -> T: # pylint: disable=arguments-differ
         """
         NuGraphBlock forward pass
-        
+          
         Args:
             x: Node feature tensor
             edge_index: Edge index tensor
         """
         return self.propagate(edge_index, x=x)
 
-    def message(self, x_i: T, x_j: T) -> T:
+    def message(self, x_i: T, x_j: T) -> T: # pylint: disable=arguments-differ
         """
         NuGraphBlock message function
 
@@ -52,14 +52,14 @@ class NuGraphBlock(MessagePassing):
         source and target nodes are concatenated and fed into a linear layer
         to construct attention weights. Messages are then formed on edges by
         weighting the source node features by these attention weights.
-        
+          
         Args:
             x_i: Edge features from target nodes
             x_j: Edge features from source nodes
         """
         return self.edge_net(torch.cat((x_i, x_j), dim=1).detach()) * x_j
 
-    def update(self, aggr_out: T, x: T) -> T:
+    def update(self, aggr_out: T, x: T) -> T: # pylint: disable=arguments-differ
         """
         NuGraphBlock update function
 
@@ -77,25 +77,23 @@ class NuGraphBlock(MessagePassing):
 class NuGraphCore(nn.Module):
     """
     NuGraph core message-passing engine
-    
+      
     This is the core NuGraph message-passing loop
 
     Args:
         hit_features: Number of features in planar embedding
         nexus_features: Number of features in nexus embedding
         interaction_features: Number of features in interaction embedding
-        ophit_features: Number of features in optical hit embedding
-        pmt_features: Number of features in PMT (flashsumpe) embedding
         flash_features: Number of features in optical flash embedding
+        pmt_features: Number of features in PMT (opflashsumpe) embedding
         use_checkpointing: Whether to use checkpointing
     """
     def __init__(self,
                  hit_features: int,
                  nexus_features: int,
                  interaction_features: int,
-                 ophit_features: int,
-                 pmt_features: int,
-                 flash_features: int,
+                 flash_features: int = 32,
+                 pmt_features: int = 64,
                  use_checkpointing: bool = True):
         super().__init__()
 
@@ -114,7 +112,6 @@ class NuGraphCore(nn.Module):
                                                  interaction_features,
                                                  interaction_features)
 
-
         # message-passing from interaction nodes to nexus nodes
         self.interaction_to_nexus = NuGraphBlock(interaction_features,
                                                  nexus_features,
@@ -123,22 +120,17 @@ class NuGraphCore(nn.Module):
         # message-passing from nexus nodes to planar nodes
         self.nexus_to_plane = NuGraphBlock(nexus_features, hit_features,
                                            hit_features)
-        
-        # hierarchical message-passing for optical system
-        self.ophit_to_pmt = NuGraphBlock(ophit_features, pmt_features, pmt_features)
-        self.pmt_to_flash = NuGraphBlock(pmt_features, flash_features, flash_features)
-        self.flash_to_interaction = NuGraphBlock(flash_features,
-                                                 interaction_features,
-                                                 interaction_features)
-        self.interaction_to_flash = NuGraphBlock(interaction_features,
-                                                 flash_features, flash_features)
-        self.flash_to_pmt = NuGraphBlock(flash_features, pmt_features, pmt_features)
-        self.pmt_to_ophit = NuGraphBlock(pmt_features, ophit_features, ophit_features)
+
+        # message-passing between nexus nodes and PMT nodes (opflashsumpe)
+        self.nexus_to_pmt = NuGraphBlock(nexus_features, pmt_features, 
+                                        pmt_features)
+        self.pmt_to_nexus = NuGraphBlock(pmt_features, nexus_features,
+                                        nexus_features)
 
     def checkpoint(self, net: nn.Module, *args) -> TD:
         """
         Checkpoint module, if enabled.
-        
+          
         Args:
             net: Network module
             args: Arguments to network module
@@ -151,7 +143,7 @@ class NuGraphCore(nn.Module):
     def forward(self, data: Data) -> None:
         """
         NuGraphCore forward pass
-        
+          
         Args:
             data: Graph data object
         """
@@ -170,36 +162,6 @@ class NuGraphCore(nn.Module):
         data["evt"].x = self.checkpoint(
             self.nexus_to_interaction, (data["sp"].x, data["evt"].x),
             data["sp", "in", "evt"].edge_index)
-
-        # message-passing from ophit to pmt
-        data["opflashsumpe"].x = self.checkpoint(
-            self.ophit_to_pmt, (data["ophits"].x, data["opflashsumpe"].x),
-            data["ophits", "sumpe", "opflashsumpe"].edge_index)
-
-        # message-passing from pmt to flash
-        data["opflash"].x = self.checkpoint(
-            self.pmt_to_flash, (data["opflashsumpe"].x, data["opflash"].x),
-            data["opflashsumpe", "flash", "opflash"].edge_index)
-
-        # message-passing from flash to interaction
-        data["evt"].x = self.checkpoint(
-            self.flash_to_interaction, (data["opflash"].x, data["evt"].x),
-            data["opflash", "in", "evt"].edge_index)
-
-        # message-passing from interaction to flash
-        data["opflash"].x = self.checkpoint(
-            self.interaction_to_flash, (data["evt"].x, data["opflash"].x),
-            data["opflash", "in", "evt"].edge_index[(1,0), :])
-
-        # message-passing from flash to pmt
-        data["opflashsumpe"].x = self.checkpoint(
-            self.flash_to_pmt, (data["opflash"].x, data["opflashsumpe"].x),
-            data["opflashsumpe", "flash", "opflash"].edge_index[(1,0), :])
-
-        # message-passing from pmt to ophit
-        data["ophits"].x = self.checkpoint(
-            self.pmt_to_ophit, (data["opflashsumpe"].x, data["ophits"].x),
-            data["ophits", "sumpe", "opflashsumpe"].edge_index[(1,0), :])
 
         # message-passing from interaction to nexus
         data["sp"].x = self.checkpoint(
