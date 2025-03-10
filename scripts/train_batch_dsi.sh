@@ -12,11 +12,6 @@
 #SBATCH --open-mode=append # So that outcomes are appended, not rewritten
 #SBATCH --signal=SIGUSR1@90
 
-export NUGRAPH_LOG=/net/projects/fermi-gnn/24autumn/meghane/winter_dsi_final/2024-autumn-nugraph/checkpoints
-export NUGRAPH_DIR=/net/projects/fermi-gnn/24autumn/meghane/winter_dsi_final/2024-autumn-nugraph/scripts/train.py
-export NUGRAPH_DATA=/net/projects/fermi-gnn/24summer/helal/preprocessing3/graph.h5
-
-export WANDB_API_KEY=4664589d68421aad612bfac0a95ff1d73ef2312b
 # If there are existing checkpoint files, specify ckpt_dir
 ckpt_dir=/net/projects/fermi-gnn/24autumn/meghane/winter_dsi_final/checkpoints
 files=$(ls -t $ckpt_dir)
