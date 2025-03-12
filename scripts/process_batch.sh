@@ -1,11 +1,23 @@
 #!/bin/bash
-#SBATCH -J exatrkx_process
-#SBATCH -p cpu_gce
-#SBATCH -t 240
-#SBATCH -n 64
-#SBATCH -A fwk
-#SBATCH -q regular
+#SBATCH -J exatrkx
+#SBATCH --time=12:00:00
+#SBATCH --partition=general
+#SBATCH --nodes=1
+#SBATCH --gres=gpu:1
+#SBATCH --ntasks=1
+#SBATCH --exclusive
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=128G
+#SBATCH --mail-user=msaidenberg@uchicago.edu
+#SBATCH --mail-type=BEGIN,END
+#SBATCH --open-mode=append
+#SBATCH --signal=SIGUSR1@90
 
 # process in parallel and then merge output
-mpiexec -l -n $SLURM_NPROCS scripts/process.py -i $1 -o $2 --label-vertex
-scripts/merge.py -f $2
+ENABLE_CONNECTIONS_DEV=true
+if [ "$ENABLE_CONNECTIONS_DEV" = true ]; then
+    srun python process.py -i /net/projects/fermi-gnn/data_no_readwrite_permission/nugraph3.evt.h5 -o /net/projects/fermi-gnn/data_no_readwrite_permission/nugraph3_meghane_output.gnn.h5 --label-vertex --connections-dev
+else
+    srun python process.py -i /net/projects/fermi-gnn/data_no_readwrite_permission/nugraph3.evt.h5 -o /net/projects/fermi-gnn/data_no_readwrite_permission/nugraph3_meghane_output.gnn.h5 --label-vertex
+fi
+srun python merge.py -f /net/projects/fermi-gnn/data_no_readwrite_permission/nugraph3_meghane_output.gnn.h5

@@ -1,10 +1,10 @@
 from typing import Any, Callable
-import numpy as np
 import pandas as pd
 
 import torch
 import torch_geometric as pyg
 
+from ..data import NuGraphData
 from .base import ProcessorBase
 
 class HitGraphProducer(ProcessorBase):
@@ -15,21 +15,21 @@ class HitGraphProducer(ProcessorBase):
                  semantic_labeller: Callable = None,
                  event_labeller: Callable = None,
                  label_vertex: bool = False,
+                 connections_dev: bool = False,
                  label_position: bool = False,
+                 optical: bool = False,
                  planes: list[str] = ['u','v','y'],
-                 node_pos: list[str] = ['local_wire','local_time'],
-                 pos_norm: list[float] = [0.3,0.055],
-                 node_feats: list[str] = ['integral','rms'],
+                 node_feats: list[str] = ['integral','rms','tpc'],
                  lower_bound: int = 20,
                  store_detailed_truth: bool = False):
 
         self.semantic_labeller = semantic_labeller
         self.event_labeller = event_labeller
         self.label_vertex = label_vertex
+        self.connections_dev = connections_dev
         self.label_position = label_position
+        self.optical = optical
         self.planes = planes
-        self.node_pos = node_pos
-        self.pos_norm = torch.tensor(pos_norm).float()
         self.node_feats = node_feats
         self.lower_bound = lower_bound
         self.store_detailed_truth = store_detailed_truth
@@ -43,7 +43,7 @@ class HitGraphProducer(ProcessorBase):
     @property
     def columns(self) -> dict[str, list[str]]:
         groups = {
-            'hit_table': ['hit_id','local_plane','local_time','local_wire','integral','rms'],
+            'hit_table': [],
             'spacepoint_table': []
         }
         if self.semantic_labeller:
@@ -59,11 +59,15 @@ class HitGraphProducer(ProcessorBase):
                 groups['event_table'] = keys
         if self.label_position:
             groups["edep_table"] = []
+        if self.optical:
+            groups["ophit_table"] = []
+            groups["opflash_table"] = []
+            groups["opflashsumpe_table"] = []
         return groups
 
     @property
     def metadata(self):
-        metadata = { 'planes': self.planes }
+        metadata = dict(planes=self.planes, gen=torch.tensor([2]))
         if self.semantic_labeller is not None:
             metadata['semantic_classes'] = self.semantic_labeller.labels[:-1]
         if self.event_labeller is not None:
@@ -75,7 +79,13 @@ class HitGraphProducer(ProcessorBase):
         if self.event_labeller or self.label_vertex:
             event = evt['event_table'].squeeze()
 
+        # support different generations of event HDF5 format
         hits = evt['hit_table']
+        if "local_plane" in hits.columns:
+            plane_key, proj_key, drift_key = "local_plane", "local_wire", "local_time"
+        else:
+            plane_key, proj_key, drift_key = "view", "proj", "drift"
+
         spacepoints = evt['spacepoint_table'].reset_index(drop=True)
 
         # discard any events with pathologically large hit integrals
@@ -117,7 +127,7 @@ class HitGraphProducer(ProcessorBase):
         # note that we can't just do a pandas groupby here, because that will
         # skip over any planes with zero hits
         for i in range(len(self.planes)):
-            planehits = hits[hits.local_plane==i]
+            planehits = hits[hits[plane_key]==i]
             nhits = planehits.filter_label.sum() if self.semantic_labeller else planehits.shape[0]
             if nhits < self.lower_bound:
                 return evt.name, None
@@ -139,7 +149,7 @@ class HitGraphProducer(ProcessorBase):
                 return evt.name, None
             del mask
 
-        data = pyg.data.HeteroData()
+        data = NuGraphData()
 
         # event metadata
         r, sr, e = evt.event_id
@@ -155,15 +165,15 @@ class HitGraphProducer(ProcessorBase):
 
         hits = hits.reset_index(names="index_2d")
 
-        # node position
-        hits[self.node_pos] *= self.pos_norm
-        data["hit"].pos = torch.tensor(hits[self.node_pos].values).float()
+        node_pos = [proj_key, drift_key]
 
-        # plane indices
-        data["hit"].plane = torch.tensor(hits["local_plane"].values, dtype=torch.long)
+        # node position
+        data["hit"].plane = torch.tensor(hits[plane_key].values, dtype=torch.long)
+        data["hit"].pos = torch.tensor(hits[node_pos].values, dtype=torch.float)
 
         # node features
-        data["hit"].x = torch.tensor(hits[self.node_feats].values).float()
+        node_feats = self.node_feats + [plane_key, proj_key, drift_key]
+        data["hit"].x = torch.tensor(hits[node_feats].values).float()
 
         # node true position
         if self.label_position:
@@ -175,16 +185,16 @@ class HitGraphProducer(ProcessorBase):
         # 2D graph edges
         data["hit", "delaunay", "hit"].edge_index = self.transform(data["hit"]).edge_index
         edge_plane = []
-        for i, plane_hits in hits.groupby("local_plane"):
+        for i, view_hits in hits.groupby(plane_key):
             tmp = pyg.data.Data()
-            tmp.index_2d = torch.tensor(plane_hits.index_2d.values).long()
-            tmp.pos = torch.tensor(plane_hits[self.node_pos].values).float()
+            tmp.index_2d = torch.tensor(view_hits.index_2d.values).long()
+            tmp.pos = torch.tensor(view_hits[node_pos].values).float()
             edge_plane.append(tmp.index_2d[self.transform(tmp).edge_index])
         data["hit", "delaunay-planar", "hit"].edge_index = torch.cat(edge_plane, dim=1)
 
         # 3D graph edges
         edge_nexus = []
-        for i, plane_hits in hits.groupby("local_plane"):
+        for i, view_hits in hits.groupby(plane_key):
             p = self.planes[i]
             edge = spacepoints.merge(hits[['hit_id','index_2d']].add_suffix(f'_{p}'),
                                      on=f'hit_id_{p}',
@@ -206,14 +216,147 @@ class HitGraphProducer(ProcessorBase):
         # truth information
         if self.semantic_labeller:
             data["hit"].y_semantic = torch.tensor(hits['semantic_label'].fillna(-1).values).long()
-            data["hit"].y_instance = torch.tensor(hits['instance_label'].fillna(-1).values).long()
+            y = torch.tensor(hits['instance_label'].fillna(-1).values).long()
+            mask = y != -1
+            y = y[mask]
+            instances = y.unique()
+            # remap instances
+            imax = instances.max() + 1 if instances.size(0) else 0
+            if instances.size(0) != imax:
+                remap = torch.full((imax,), -1, dtype=torch.long)
+                remap[instances] = torch.arange(instances.size(0))
+                y = remap[y]
+            data["particle-truth"].num_nodes = instances.size(0)
+            edges = torch.stack((mask.nonzero().squeeze(1), y), dim=0).long()
+            data["hit", "cluster-truth", "particle-truth"].edge_index = edges
             if self.store_detailed_truth:
                 data["hit"].g4_id = torch.tensor(hits['g4_id'].fillna(-1).values).long()
                 data["hit"].parent_id = torch.tensor(hits['parent_id'].fillna(-1).values).long()
                 data["hit"].pdg = torch.tensor(hits['type'].fillna(-1).values).long()
 
+        # optical system
+        if self.optical:
+
+            ophits = evt["ophit_table"]
+            sum_pe = evt["opflashsumpe_table"]
+            opflash = evt["opflash_table"]
+
+            # node position
+            data["ophits"].pos = torch.tensor(ophits[["wire_pos_0", "wire_pos_1", "wire_pos_2"]].values).float()
+            data["opflash"].pos = torch.tensor(opflash[["wire_pos_0", "wire_pos_1", "wire_pos_2"]].values).float()
+
+            # node features
+            data["ophits"].x = torch.tensor(ophits[["amplitude", "area",  "pe", "peaktime",
+                                                    "width", "wire_pos_0", "wire_pos_1", "wire_pos_2",]].values).float()
+            data["opflash"].x = torch.tensor(opflash[["time", "time_width", "totalpe", "wire_pos_0", 
+                                                    "wire_pos_1", "wire_pos_2", "y_center", "y_width", 
+                                                    "z_center", "z_width"]].values).float()
+            data["opflashsumpe"].x = torch.tensor(sum_pe[["pmt_channel", "sumpe"]].values).float()
+
+            # 1st hierarchical layer
+            edge1 = torch.tensor(ophits[["hit_id","sumpe_id"]].values.transpose())
+            data["ophits", "sumpe", "opflashsumpe"].edge_index = edge1.long()
+
+            # 2nd hierarchical layer
+            edge2 = torch.tensor(sum_pe[["sumpe_id", "flash_id"]].values.transpose())
+            data["opflashsumpe", "flash", "opflash"].edge_index = edge2.long()
+
+            # 3rd hierarchical layer
+            edge3 = torch.tensor([opflash["flash_id"].values[0], 0])
+            data["opflash", "in", "evt"].edge_index = edge3
+
+            if self.connections_dev:
+                # layer between spacepoint and opflash level in optical data
+                list_y = [
+                    55.267144,
+                    55.962509,
+                    27.555318,
+                    -0.850317,
+                    -56.447756,
+                    55.442895,
+                    55.789304,
+                    -0.675445,
+                    0.017374,
+                    -56.275066,
+                    -56.274171,
+                    55.616099,
+                    55.616099,
+                    -0.50224,
+                    -1.021855,
+                    -56.100966,
+                    -56.100966,
+                    54.750076,
+                    54.749983,
+                    -0.675445,
+                    -0.84865,
+                    -56.96699,
+                    -56.274171,
+                    55.096391,
+                    55.269595,
+                    27.556793,
+                    -0.502415,
+                    -28.734833,
+                    -56.274171,
+                    -56.620838,
+                ]
+
+                list_z = [
+                    951.85,
+                    911.05,
+                    989.65,
+                    865.45,
+                    911.95,
+                    751.75,
+                    710.95,
+                    796.15,
+                    664.15,
+                    752.05,
+                    711.25,
+                    540.85,
+                    500.05,
+                    585.25,
+                    452.95,
+                    540.55,
+                    500.35,
+                    328.15,
+                    287.95,
+                    373.75,
+                    242.05,
+                    328.45,
+                    287.65,
+                    128.35,
+                    87.85,
+                    51.25,
+                    173.65,
+                    50.35,
+                    128.05,
+                    87.85,
+                ]
+
+                opflashsumpe_information = pd.DataFrame({"y": list_y, "z": list_z})
+                opflashsumpe_nodes = torch.tensor(
+                    opflashsumpe_information[["y", "z"]].values
+                )
+                spacepoints_nodes = torch.tensor(
+                    spacepoints[["position_y", "position_z"]].values
+                )
+
+                distances = torch.cdist(
+                    spacepoints_nodes.float(), opflashsumpe_nodes.float(), p=2
+                )
+                _, nearest_indices = torch.topk(distances, 2, largest=False, dim=1)
+
+                spacepoints_indices = torch.arange(
+                    spacepoints_nodes.size(0)
+                ).repeat_interleave(2)
+                opflashsumpe_indices = nearest_indices.flatten()
+
+                edges = torch.stack([spacepoints_indices, opflashsumpe_indices], dim=0)
+                data["sp", "connection", "opflashsumpe"].edge_index = edges.long()
+
         # event label
         if self.event_labeller:
+            # pylint: disable=possibly-used-before-assignment
             data['evt'].y = torch.tensor(self.event_labeller(event)).long().reshape([1])
 
         # 3D vertex truth

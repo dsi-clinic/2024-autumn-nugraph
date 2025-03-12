@@ -2,55 +2,31 @@ name: numl
 channels:
   - conda-forge
   - nvidia
-  - pytorch
-  - pyg
   - rapidsai
-  - numl
 dependencies:
-  - act
-  - automake
-  - compilers
+  - anywidget
+  # - cuda-version=11.8 # uncomment this line to manually select a 
   - cuml
-  - flit
-  - git
-  - gh
   - h5py=*=*mpich*
-  - htop
-  - ipywidgets
-  - jupyterlab
-  - jupyterlab-plotly-extension
+  - matplotlib
   - mpi4py
-  - nbstripout
-  - ncdu
-  - ninja
-  - nugraph
   - numba
-  - numexpr>=2.8.0 # temporary fix
-  - numpy<2
-  - openblas
-  - openssh
+  - numpy
   - particle
-  - ph5concat
   - pip
   - plotly
-  - pyg
   - pylint
-  - pynuml
-  - pynvml
   - pytables
   - pytest
   - python-kaleido
-  - pytorch::pytorch=2.4
-  - pytorch-cuda=12.4
+  - pytorch_geometric
+  - pytorch=2.5
   - pytorch-lightning
-  - pytorch-scatter
+  - pytorch_scatter
   - PyYAML
-  - pyzmq
   - scikit-learn
   - seaborn
   - tensorboard
   - torchmetrics
   - uproot
-  - vim
   - wandb
-  - zlib
